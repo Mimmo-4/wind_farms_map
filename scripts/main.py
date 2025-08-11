@@ -17,6 +17,6 @@ fig.update_traces(
 fig.update_layout(mapbox_style="open-street-map")
 
 # Save to HTML
-fig.write_html("wind_farms_map.html", include_plotlyjs="inline", full_html=True)
+fig.write_html("index.html", include_plotlyjs="inline", full_html=True)
 
 fig.show()
