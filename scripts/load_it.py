@@ -34,6 +34,7 @@ df_it["Country"] = "Italy"
 df_it["Model"] = "Not available"
 df_it["Diameter"] = np.nan
 df_it["Wind Farm"] = "Not available"
+df_it["Last Update"] = "01/01/2019"
 
 df_new = pd.concat([df, df_it], ignore_index=True)
 df_new.to_csv("data/wind_farms.csv", index=False)
