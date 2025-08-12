@@ -14,15 +14,10 @@ shapefile_path = 'data/Sweden/LST_VKOLLEN_VVERK'
 
 # Read the shapefile
 gdf = gpd.read_file(f"{shapefile_path}.shp")
-print(len(gdf))
 gdf = gdf[gdf["Status"] == "Uppfört"]
-print(len(gdf))
 
 df = pd.read_csv("data/wind_farms.csv")
 df = df[df["Country"] != "Sweden"]
-
-print(gdf.Status)
-print(gdf.columns)
 
 df_se = pd.DataFrame(columns=df.columns)
 
