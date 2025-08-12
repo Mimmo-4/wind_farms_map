@@ -1,6 +1,6 @@
 {
     "name": "Wind Farms Map",
-    "short_name": "WF Map",
+    "short_name": "Wind Farms Map",
     "start_url": "index.html",
     "display": "standalone",
     "background_color": "#ffffff",
