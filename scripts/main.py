@@ -17,6 +17,22 @@ fig.update_traces(
 fig.update_layout(mapbox_style="open-street-map")
 
 # Save to HTML
-fig.write_html("index.html", include_plotlyjs="inline", full_html=True)
+html_file = "index.html"
+fig.write_html(html_file, include_plotlyjs="inline", full_html=True)
 
 fig.show()
+
+# Modify html head
+manifest_block = """
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2c3e50">
+"""
+
+with open(html_file, "r", encoding="utf-8") as f:
+    html_content = f.read()
+
+# Insert header block for manifest and theme color
+html_content = html_content.replace("<head>", "<head>\n" + manifest_block, 1)
+
+with open(html_file, "w", encoding="utf-8") as f:
+    f.write(html_content)
