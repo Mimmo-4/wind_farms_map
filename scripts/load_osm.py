@@ -37,7 +37,7 @@ for key in sorted(property_keys):
 # pprint.pprint(features[0], depth=3)
 
 # Filter properties of interest from a list
-property_of_interest = ["name", "height:hub", "manufacturer", "model", "operator", "rotor:diameter", "start_date"]
+property_of_interest = ["name", "height:hub", "manufacturer", "model", "operator", "rotor:diameter", "start_date", "power"]
 
 filtered_features = []
 for feature in features:
@@ -55,6 +55,8 @@ df = pd.json_normalize(filtered_features)
 print("\nFiltered DataFrame:")
 print(df.head(20))
 print(df.info())
+
+print(df["geometry.type"].unique())
 
 # Keep only the rows with geometry.type "Point"
 df = df[df["geometry.type"] == "Point"]

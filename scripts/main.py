@@ -6,7 +6,7 @@ df["Diameter"] = df["Diameter"].fillna(50)
 
 fig = px.scatter_map(df, lat="Lat", lon="Lon", 
                     size="Diameter",
-                    zoom=5, hover_data=["Diameter", "Hub Height", "Manufacturer", "Model", "Operator"])   # model, country, wind farm, last update
+                    zoom=5, hover_data=["Diameter", "Hub Height", "Manufacturer", "Model", "Operator"])   # country, wind farm, last update
 
 fig.update_traces(
     cluster=dict(enabled=True, maxzoom=7)
