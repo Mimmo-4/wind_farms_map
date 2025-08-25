@@ -29,15 +29,18 @@ for feature in features:
     property_keys.update(props.keys())
 
 print("\nUnique property keys (columns):")
-for key in sorted(property_keys):
-    print(f"- {key}")
+# print properties with the number of counts
+# for key in sorted(property_keys):
+    # count = sum(1 for feature in features if key in feature.get("properties", {}))
+    # print(f"- {key} - {count}")    
+
 
 # Optional: Preview the first feature
 # print("\nFirst feature preview:")
 # pprint.pprint(features[0], depth=3)
 
 # Filter properties of interest from a list
-property_of_interest = ["name", "height:hub", "manufacturer", "model", "operator", "rotor:diameter", "start_date", "power"]
+property_of_interest = ["name", "height", "height:hub", "manufacturer", "model", "operator", "rotor:diameter", "start_date", "was:power", "generator:output:electricity"]
 
 filtered_features = []
 for feature in features:
@@ -56,8 +59,6 @@ print("\nFiltered DataFrame:")
 print(df.head(20))
 print(df.info())
 
-print(df["geometry.type"].unique())
-
 # Keep only the rows with geometry.type "Point"
 df = df[df["geometry.type"] == "Point"]
 # reset index
@@ -71,10 +72,12 @@ df["Lat"] = df["geometry.coordinates"].apply(lambda x: x[1] if isinstance(x, lis
 df.rename(columns={
     "properties.rotor:diameter": "Diameter",
     "properties.height:hub": "Hub Height",
+    "properties.height": "Total Height",
     "properties.manufacturer": "Manufacturer",
     "properties.operator": "Operator",
-    "properties.power_rating": "rating",
+    "properties.generator:output:electricity": "Rated Power",
     "properties.model": "Model",
+    "properties.start_date": "Start Date",
 }, inplace=True)
 
 # Drop columns geometry
