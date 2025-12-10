@@ -195,3 +195,26 @@ html_content = html_content.replace("</body>", service_worker_script + "\n</body
 with open(html_file, "w", encoding="utf-8") as f:
     f.write(html_content)
 
+
+# After fig.write_html(...)
+responsive_css = """
+<style>
+@media (max-width: 768px) {
+    .map-container { height: 400px; }
+}
+@media (min-width: 769px) {
+    .map-container { height: 800px; }
+}
+</style>
+"""
+
+with open(html_file, "r", encoding="utf-8") as f:
+    html_content = f.read()
+
+html_content = html_content.replace("<head>", "<head>\n" + responsive_css, 1)
+html_content = html_content.replace("<body>", "<body>\n<div class='map-container'>", 1)
+html_content = html_content.replace("</body>", "</div>\n</body>", 1)
+
+with open(html_file, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
