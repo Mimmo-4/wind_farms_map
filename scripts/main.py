@@ -49,16 +49,6 @@ with open(html_file, "r", encoding="utf-8") as f:
 # Insert manifest block into <head>
 html_content = html_content.replace("<head>", "<head>\n" + manifest_block, 1)
 
-# Custom CSS for hover box styling
-custom_css = """
-<style>
-    .hoverlayer .hovertext {
-        font-size: 36px !important;
-        padding: 20px !important;
-    }
-</style>
-"""
-
 # splash_css = """
 # <style>
 #     #splash-screen {
@@ -107,7 +97,7 @@ custom_css = """
 # --- Basemap dropdown + Update Now button (REAL HTML + JS) ---
 style_selector_html = """
 <div id="style-switcher">
-  <label for="map-style">Basemap:</label>
+  <label for="map-style">Map style:</label>
   <select id="map-style">
     <option value="open-street-map">OpenStreetMap</option>
     <option value="satellite">Satellite</option>
@@ -178,6 +168,22 @@ style_switcher_js = """
 })();
 </script>
 """
+
+custom_css = """
+<style>
+    .plotly .modebar-btn,
+    .plotly .dropdown {
+        font-size: 200% !important;
+    }
+    .hoverlayer .hovertext {
+        font-size: 200% !important;
+        padding: 20px !important;
+    }
+</style>
+"""
+
+# Insert custom CSS into <head>
+html_content = html_content.replace("<head>", "<head>\n" + custom_css, 1)
 
 # Insert the dropdown+JS right after <body>
 html_content = html_content.replace("<body>", "<body>\n" + style_selector_html + "\n" + style_switcher_js, 1)
