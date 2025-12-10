@@ -16,12 +16,22 @@ fig.update_traces(
 
 # Set map style
 fig.update_layout(
-    # map_center={"lat": df["Lat"].mean(), "lon": df["Lon"].mean()}, 
-    map_style="open-street-map")   # open-street-map, stamen-terrain, carto-positron "carto-darkmatter", "stamen-terrain" "stamen-toner" "stamen-watercolor"
+    map_center={"lat": df["Lat"].mean(), "lon": df["Lon"].mean()}, 
+    autosize=True,
+    margin=dict(l=0, r=0, t=0, b=0),
+  map_style="open-street-map")   # open-street-map, stamen-terrain, carto-positron "carto-darkmatter", "stamen-terrain" "stamen-toner" "stamen-watercolor"
 
 # Save to HTML
 html_file = "index.html"
-fig.write_html(html_file, include_plotlyjs="inline", full_html=True)
+
+fig.write_html(
+    "index.html",
+    include_plotlyjs="cdn",
+    full_html=True,
+    config={"responsive": True},
+    div_id="windfarm-map"
+)
+
 
 # fig.show()
 
@@ -169,18 +179,56 @@ style_switcher_js = """
 </script>
 """
 
+
+# --- Responsive full-screen CSS ---
 custom_css = """
 <style>
-    .plotly .modebar-btn,
-    .plotly .dropdown {
-        font-size: 200% !important;
+    /* Remove default spacing and force full viewport */
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden; /* avoid scrollbars causing 'blank edges' */
+        background: #000; /* optional: makes edges obvious if any remain */
     }
+
+    /* Use dynamic viewport units when supported; fall back to 100vh */
+    #windfarm-map {
+        height: 100dvh;
+        width: 100dvw;
+    }
+    @supports not (height: 100dvh) {
+        #windfarm-map {
+            height: 100vh;
+            width: 100vw;
+        }
+    }
+
+    /* Optional: larger hover/modebar; these won't change layout size */
     .hoverlayer .hovertext {
         font-size: 200% !important;
         padding: 20px !important;
     }
+    .plotly .modebar-btn,
+    .plotly .dropdown {
+        font-size: 200% !important;
+    }
+
+    /* If you add UI controls, overlay them so they don’t push the map */
+    #style-switcher {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 9999;
+        background: rgba(255,255,255,0.9);
+        padding: 6px 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
 </style>
 """
+
 
 # Insert custom CSS into <head>
 html_content = html_content.replace("<head>", "<head>\n" + custom_css, 1)
@@ -196,25 +244,25 @@ with open(html_file, "w", encoding="utf-8") as f:
     f.write(html_content)
 
 
-# After fig.write_html(...)
-responsive_css = """
-<style>
-@media (max-width: 768px) {
-    .map-container { height: 400px; }
-}
-@media (min-width: 769px) {
-    .map-container { height: 800px; }
-}
-</style>
-"""
+# # After fig.write_html(...)
+# responsive_css = """
+# <style>
+# @media (max-width: 768px) {
+#     .map-container { height: 400px; }
+# }
+# @media (min-width: 769px) {
+#     .map-container { height: 880px; }
+# }
+# </style>
+# """
 
-with open(html_file, "r", encoding="utf-8") as f:
-    html_content = f.read()
+# with open(html_file, "r", encoding="utf-8") as f:
+#     html_content = f.read()
 
-html_content = html_content.replace("<head>", "<head>\n" + responsive_css, 1)
-html_content = html_content.replace("<body>", "<body>\n<div class='map-container'>", 1)
-html_content = html_content.replace("</body>", "</div>\n</body>", 1)
+# html_content = html_content.replace("<head>", "<head>\n" + responsive_css, 1)
+# html_content = html_content.replace("<body>", "<body>\n<div class='map-container'>", 1)
+# html_content = html_content.replace("</body>", "</div>\n</body>", 1)
 
-with open(html_file, "w", encoding="utf-8") as f:
-    f.write(html_content)
+# with open(html_file, "w", encoding="utf-8") as f:
+#     f.write(html_content)
 
