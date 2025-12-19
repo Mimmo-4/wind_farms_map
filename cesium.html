@@ -96,17 +96,18 @@ html, body, #cesiumContainer {
             const lat = parseFloat(coords[1]);
             if (isNaN(lat) || isNaN(lon)) return;
 
-            const hubHeight = parseFloat(cols[hubIdx]) || 50; // <-- use cols, not row
-            const scale = hubHeight / 50;
+            // const hubHeight = parseFloat(cols[hubIdx]) || 50; // <-- use cols, not row
+            // const scale = hubHeight / 50;
 
             viewer.entities.add({
                 position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                model: {
-                    uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
-                    scale: scale,
-                    minimumPixelSize: 64,
-                    maximumScale: 200
-                },
+                point: { pixelSize: 6, color: Cesium.Color.CYAN },
+                // model: {
+                //     uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
+                //     scale: scale,
+                //     minimumPixelSize: 64,
+                //     maximumScale: 200
+                // },
                 description: `
                     <b>Name:</b> ${cols[header.indexOf("properties.name")]}<br>
                     <b>Operator:</b> ${cols[header.indexOf("Operator")]}<br>
