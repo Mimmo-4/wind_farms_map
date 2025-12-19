@@ -50,6 +50,8 @@ html, body, #cesiumContainer {
     console.log("Ion token:", Cesium.Ion.defaultAccessToken);
 </script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
 <script>
     console.log("Cesium script loaded");
     console.log("Creating Cesium viewer");
@@ -76,66 +78,57 @@ html, body, #cesiumContainer {
 
     console.log("Cesium viewer created", viewer);
 
-    fetch("./data/wind_farms.csv")
-    .then(r => r.text())
-    .then(text => {
-        const lines = text.trim().split("\n");
-        const header = lines[0].split(",");
+    Papa.parse("./data/wind_farms.csv", {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            results.data.forEach(row => {
+                if (!row["geometry.coordinates"]) return;
 
-        // Find the index of geometry.coordinates
-        const coordIdx = header.indexOf("geometry.coordinates");
-        if (coordIdx === -1) {
-            console.error("geometry.coordinates column not found");
-            return;
-        }
+                const coords = row["geometry.coordinates"].replace(/[\[\]"]/g, "").split(",");
+                const lon = parseFloat(coords[0]);
+                const lat = parseFloat(coords[1]);
+                if (isNaN(lat) || isNaN(lon)) return;
 
-        // Loop through each row
-        lines.slice(1).forEach(line => {
-            // Split CSV while respecting quoted strings
-            const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-            if (!cols || cols.length <= coordIdx) return;
+                console.log("Adding point:", lat, lon);
 
-            let coordStr = cols[coordIdx];
-            if (!coordStr) return;
+                const hubHeight = parseFloat(row["Hub Height"]) || 50; // fallback if missing
+                const scale = hubHeight / 50; // adjust 50 as “base model height”
 
-            // Remove quotes and brackets
-            coordStr = coordStr.replace(/["\[\]]/g, "");
-            const coords = coordStr.split(",");
-            if (coords.length !== 2) return;
 
-            const lon = parseFloat(coords[0]);
-            const lat = parseFloat(coords[1]);
-            if (isNaN(lat) || isNaN(lon)) return;
-
-            console.log("Adding point:", lat, lon);
-
-            viewer.entities.add({
-                position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                point: { pixelSize: 6, color: Cesium.Color.CYAN },
-                // Add description for popup
-                description: `
-                    <b>Name:</b> ${cols[header.indexOf("properties.name")]}<br>
-                    <b>Operator:</b> ${cols[header.indexOf("Operator")]}<br>
-                    <b>Start Date:</b> ${cols[header.indexOf("Start Date")]}<br>
-                    <b>Diameter:</b> ${cols[header.indexOf("Diameter")]}<br>
-                    <b>Hub Height:</b> ${cols[header.indexOf("Hub Height")]}<br>
-                    <b>Total Height:</b> ${cols[header.indexOf("Total Height")]}<br>
-                    <b>Manufacturer:</b> ${cols[header.indexOf("Manufacturer")]}<br>
-                    <b>Model:</b> ${cols[header.indexOf("Model")]}<br>
-                    <b>Rated Power:</b> ${cols[header.indexOf("Rated Power")]}
-                `
+                viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                    // point: { pixelSize: 6, color: Cesium.Color.CYAN },
+                    model: {
+                        uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
+                        scale: scale,
+                        minimumPixelSize: 64,      // ensures visibility when zoomed out
+                        maximumScale: 200
+                    },
+                    description: `
+                        <b>Name:</b> ${row["properties.name"]}<br>
+                        <b>Operator:</b> ${row["Operator"]}<br>
+                        <b>Start Date:</b> ${row["Start Date"]}<br>
+                        <b>Diameter:</b> ${row["Diameter"]}<br>
+                        <b>Hub Height:</b> ${row["Hub Height"]}<br>
+                        <b>Total Height:</b> ${row["Total Height"]}<br>
+                        <b>Manufacturer:</b> ${row["Manufacturer"]}<br>
+                        <b>Model:</b> ${row["Model"]}<br>
+                        <b>Rated Power:</b> ${row["Rated Power"]}
+                    `
+                });
             });
 
-        });
-
-        // Center camera on all turbines
-        // const positions = viewer.entities.values.map(e => e.position.getValue(Cesium.JulianDate.now()));
-        // if (positions.length > 0) {
-        //     const rectangle = Cesium.Rectangle.fromCartesianArray(positions);
-        //     viewer.camera.flyTo({ destination: rectangle });
-        // }
-        viewer.camera.flyHome(2);
+            // Center camera
+            const positions = viewer.entities.values.map(e => e.position.getValue(Cesium.JulianDate.now()));
+            if (positions.length > 0) {
+                const rectangle = Cesium.Rectangle.fromCartesianArray(positions);
+                viewer.camera.flyTo({ destination: rectangle });
+            }
+        }
     });
+
     </script>
     
 </body>
