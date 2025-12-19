@@ -205,6 +205,8 @@ custom_css = """
     #windfarm-map {
         height: 100dvh;
         width: 100dvw;
+        position: relative;   /* <-- important for overlays */
+        z-index: 1;   
     }
     @supports not (height: 100dvh) {
         #windfarm-map {
@@ -228,7 +230,7 @@ custom_css = """
         position: fixed;
         top: 12px;
         left: 12px;
-        z-index: 9999;
+        z-index: 10000;
         background: rgba(255,255,255,0.9);
         padding: 6px 10px;
         border-radius: 6px;
@@ -238,7 +240,7 @@ custom_css = """
       position: fixed;
       top: 12px;
       right: 12px;
-      z-index: 10000;
+      z-index: 10001;
     }
 
     #view-switcher button {
