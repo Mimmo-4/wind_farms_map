@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Wind Farms – 3D Globe</title>
+
+<!-- Cesium -->
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+<style>
+html, body, #cesiumContainer {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+#view-switcher {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 10000;
+}
+
+#view-switcher button {
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #2c3e50;
+  color: white;
+}
+</style>
+</head>
+
+<body>
+
+<div id="view-switcher">
+  <button onclick="location.href='index.html'">
+    🗺️ 2D Map
+  </button>
+</div>
+
+<div id="cesiumContainer"></div>
+
+<script>
+    Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlMTZhOTYzMC0wNGNlLTQ5NzctYWRhYS03YWFkYzZmNTVmNGQiLCJpZCI6MzcxMjU2LCJpYXQiOjE3NjYxNTc0Nzd9.4RV9x9K8HkAhF8iQKw5ICLzwWOgRMsMH4Aye7WK4Ixw";
+    console.log("Ion token:", Cesium.Ion.defaultAccessToken);
+</script>
+
+<script>
+    console.log("Cesium script loaded");
+    console.log("Creating Cesium viewer");
+
+    const viewer = new Cesium.Viewer("cesiumContainer", {
+    terrainProvider: Cesium.Terrain.fromWorldTerrain(),
+    animation: false,
+    timeline: false,
+    baseLayerPicker: true
+    });
+
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+
+    console.log("Cesium viewer created", viewer);
+
+    fetch("./data/wind_farms.csv")
+    .then(r => r.text())
+    .then(text => {
+        const lines = text.trim().split("\n");
+        const header = lines[0].split(",");
+    
+        const latIdx = header.indexOf("Lat");
+        const lonIdx = header.indexOf("Lon");
+    
+        if (latIdx === -1 || lonIdx === -1) {
+        console.error("Lat/Lon columns not found");
+        return;
+        }
+    
+        lines.slice(1).forEach(line => {
+        const cols = line.split(",");
+        const lat = parseFloat(cols[latIdx]);
+        const lon = parseFloat(cols[lonIdx]);
+    
+        if (isNaN(lat) || isNaN(lon)) return;
+    
+        viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(lon, lat),
+            point: {
+            pixelSize: 6,
+            color: Cesium.Color.CYAN,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 1
+            }
+        });
+        });
+    
+        viewer.camera.flyHome(2);
+    });
+    </script>
+    
+</body>
+</html>

@@ -119,6 +119,14 @@ style_selector_html = """
 </div>
 """
 
+view_switcher_html = """
+<div id="view-switcher">
+  <button onclick="location.href='cesium.html'">
+    🌍 3D Globe
+  </button>
+</div>
+"""
+
 style_switcher_js = """
 <script>
 (function() {
@@ -226,6 +234,22 @@ custom_css = """
         border-radius: 6px;
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
     }
+    #view-switcher {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 10000;
+    }
+
+    #view-switcher button {
+      font-size: 16px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #2c3e50;
+      color: white;
+    }
 </style>
 """
 
@@ -234,7 +258,16 @@ custom_css = """
 html_content = html_content.replace("<head>", "<head>\n" + custom_css, 1)
 
 # Insert the dropdown+JS right after <body>
-html_content = html_content.replace("<body>", "<body>\n" + style_selector_html + "\n" + style_switcher_js, 1)
+# html_content = html_content.replace("<body>", "<body>\n" + style_selector_html + "\n" + style_switcher_js, 1)
+html_content = html_content.replace(
+    "<body>",
+    "<body>\n"
+    + view_switcher_html + "\n"
+    + style_selector_html + "\n"
+    + style_switcher_js,
+    1
+)
+
 
 # (Optional) insert service worker script before </body>
 html_content = html_content.replace("</body>", service_worker_script + "\n</body>", 1)
