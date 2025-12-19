@@ -67,43 +67,68 @@ html, body, #cesiumContainer {
 
     console.log("Cesium viewer created", viewer);
 
-    Papa.parse("./data/wind_farms.csv", {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      worker: true,  // run parsing in a separate thread
-      step: function(row) {
-          if (!row.data["geometry.coordinates"]) return;
+    fetch("./data/wind_farms.csv")
+      .then(r => r.text())
+      .then(text => {
+          const lines = text.trim().split("\n");
+          const header = lines[0].split(",");
 
-          const coords = row.data["geometry.coordinates"].replace(/[\[\]"]/g, "").split(",");
-          const lon = parseFloat(coords[0]);
-          const lat = parseFloat(coords[1]);
-          if (isNaN(lat) || isNaN(lon)) return;
+          // Find the index of geometry.coordinates
+          const coordIdx = header.indexOf("geometry.coordinates");
+          if (coordIdx === -1) {
+              console.error("geometry.coordinates column not found");
+              return;
+          }
 
-          viewer.entities.add({
-              position: Cesium.Cartesian3.fromDegrees(lon, lat),
-              point: { pixelSize: 6, color: Cesium.Color.CYAN },
-              description: `
-                  <b>Name:</b> ${row.data["properties.name"]}<br>
-                  <b>Operator:</b> ${row.data["Operator"]}<br>
-                  <b>Start Date:</b> ${row.data["Start Date"]}<br>
-                  <b>Diameter:</b> ${row.data["Diameter"]}<br>
-                  <b>Hub Height:</b> ${row.data["Hub Height"]}<br>
-                  <b>Total Height:</b> ${row.data["Total Height"]}<br>
-                  <b>Manufacturer:</b> ${row.data["Manufacturer"]}<br>
-                  <b>Model:</b> ${row.data["Model"]}<br>
-                  <b>Rated Power:</b> ${row.data["Rated Power"]}
-              `
+          // Loop through each row
+          lines.slice(1).forEach(line => {
+              // Split CSV while respecting quoted strings
+              const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+              if (!cols || cols.length <= coordIdx) return;
+
+              let coordStr = cols[coordIdx];
+              if (!coordStr) return;
+
+              // Remove quotes and brackets
+              coordStr = coordStr.replace(/["\[\]]/g, "");
+              const coords = coordStr.split(",");
+              if (coords.length !== 2) return;
+
+              const lon = parseFloat(coords[0]);
+              const lat = parseFloat(coords[1]);
+              if (isNaN(lat) || isNaN(lon)) return;
+
+              console.log("Adding point:", lat, lon);
+
+              const hubHeight = parseFloat(row["Hub Height"]) || 50; // fallback if missing
+              const scale = hubHeight / 50; // adjust 50 as “base model height”
+
+              viewer.entities.add({
+                  position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                  // point: { pixelSize: 6, color: Cesium.Color.CYAN },
+                  model: {
+                      uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
+                      scale: scale,
+                      minimumPixelSize: 64,      // ensures visibility when zoomed out
+                      maximumScale: 200
+                  },
+                  // Add description for popup
+                  description: `
+                      <b>Name:</b> ${cols[header.indexOf("properties.name")]}<br>
+                      <b>Operator:</b> ${cols[header.indexOf("Operator")]}<br>
+                      <b>Start Date:</b> ${cols[header.indexOf("Start Date")]}<br>
+                      <b>Diameter:</b> ${cols[header.indexOf("Diameter")]}<br>
+                      <b>Hub Height:</b> ${cols[header.indexOf("Hub Height")]}<br>
+                      <b>Total Height:</b> ${cols[header.indexOf("Total Height")]}<br>
+                      <b>Manufacturer:</b> ${cols[header.indexOf("Manufacturer")]}<br>
+                      <b>Model:</b> ${cols[header.indexOf("Model")]}<br>
+                      <b>Rated Power:</b> ${cols[header.indexOf("Rated Power")]}
+                  `
+              });
+
           });
-      },
-      complete: function() {
-          console.log("CSV loading complete");
-      }
-  });
+      })
 
-
-    // const hubHeight = parseFloat(row["Hub Height"]) || 50; // fallback if missing
-    // const scale = hubHeight / 50; // adjust 50 as “base model height”
     // model: {
     //     uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
     //     scale: scale,
