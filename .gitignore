@@ -1,2 +1,12 @@
-data
+data/Denmark
+data/Germany
+data/Italy
+data/Norway
+data/Sweden
+data/OSM
+data/Netherlands
+data/maritime_boundaries
+data/wind_farms_example.csv
+data/wind_farms_old.csv
+data/wind_farms_with_countries.csv
 src/__pycache
