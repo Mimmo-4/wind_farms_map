@@ -54,22 +54,22 @@ html, body, #cesiumContainer {
     console.log("Cesium script loaded");
     console.log("Creating Cesium viewer");
 
-    // const viewer = new Cesium.Viewer("cesiumContainer", {
-    // terrainProvider: Cesium.Terrain.fromWorldTerrain(),
-    // animation: false,
-    // timeline: false,
-    // baseLayerPicker: true
-    // });
-
     const viewer = new Cesium.Viewer("cesiumContainer", {
-    imageryProvider: new Cesium.OpenStreetMapImageryProvider({
-        url: 'https://a.tile.openstreetmap.org/'
-    }),
-    baseLayerPicker: false,
-    terrainProvider: new Cesium.EllipsoidTerrainProvider(), // flat Earth
+    terrainProvider: Cesium.Terrain.fromWorldTerrain(),
     animation: false,
-    timeline: false
+    timeline: false,
+    baseLayerPicker: true
     });
+
+    // const viewer = new Cesium.Viewer("cesiumContainer", {
+    // imageryProvider: new Cesium.OpenStreetMapImageryProvider({
+    //     url: 'https://a.tile.openstreetmap.org/'
+    // }),
+    // baseLayerPicker: false,
+    // terrainProvider: new Cesium.EllipsoidTerrainProvider(), // flat Earth
+    // animation: false,
+    // timeline: false
+    // });
 
 
     viewer.scene.globe.depthTestAgainstTerrain = true;
@@ -111,8 +111,21 @@ html, body, #cesiumContainer {
 
             viewer.entities.add({
                 position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                point: { pixelSize: 6, color: Cesium.Color.CYAN }
+                point: { pixelSize: 6, color: Cesium.Color.CYAN },
+                // Add description for popup
+                description: `
+                    <b>Name:</b> ${cols[header.indexOf("properties.name")]}<br>
+                    <b>Operator:</b> ${cols[header.indexOf("Operator")]}<br>
+                    <b>Start Date:</b> ${cols[header.indexOf("Start Date")]}<br>
+                    <b>Diameter:</b> ${cols[header.indexOf("Diameter")]}<br>
+                    <b>Hub Height:</b> ${cols[header.indexOf("Hub Height")]}<br>
+                    <b>Total Height:</b> ${cols[header.indexOf("Total Height")]}<br>
+                    <b>Manufacturer:</b> ${cols[header.indexOf("Manufacturer")]}<br>
+                    <b>Model:</b> ${cols[header.indexOf("Model")]}<br>
+                    <b>Rated Power:</b> ${cols[header.indexOf("Rated Power")]}
+                `
             });
+
         });
 
         // Center camera on all turbines
