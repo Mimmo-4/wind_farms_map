@@ -69,66 +69,67 @@ html, body, #cesiumContainer {
     console.log("Cesium viewer created", viewer);
 
     fetch("./data/wind_farms.csv")
-      .then(r => r.text())
-      .then(text => {
-          const lines = text.trim().split("\n");
-          const header = lines[0].split(",");
+    .then(r => r.text())
+    .then(text => {
+        const lines = text.trim().split("\n");
+        const header = lines[0].split(",");
 
-          // Find the index of geometry.coordinates
-          const coordIdx = header.indexOf("geometry.coordinates");
-          if (coordIdx === -1) {
-              console.error("geometry.coordinates column not found");
-              return;
-          }
+        const coordIdx = header.indexOf("geometry.coordinates");
+        const hubIdx = header.indexOf("Hub Height");  // <-- index for hub height
+        if (coordIdx === -1) {
+            console.error("geometry.coordinates column not found");
+            return;
+        }
 
-          // Loop through each row
-          lines.slice(1).forEach(line => {
-              // Split CSV while respecting quoted strings
-              const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-              if (!cols || cols.length <= coordIdx) return;
+        lines.slice(1).forEach(line => {
+            const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if (!cols || cols.length <= coordIdx) return;
 
-              let coordStr = cols[coordIdx];
-              if (!coordStr) return;
+            let coordStr = cols[coordIdx];
+            if (!coordStr) return;
 
-              // Remove quotes and brackets
-              coordStr = coordStr.replace(/["\[\]]/g, "");
-              const coords = coordStr.split(",");
-              if (coords.length !== 2) return;
+            coordStr = coordStr.replace(/["\[\]]/g, "");
+            const coords = coordStr.split(",");
+            if (coords.length !== 2) return;
 
-              const lon = parseFloat(coords[0]);
-              const lat = parseFloat(coords[1]);
-              if (isNaN(lat) || isNaN(lon)) return;
+            const lon = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+            if (isNaN(lat) || isNaN(lon)) return;
 
-              console.log("Adding point:", lat, lon);
+            const hubHeight = parseFloat(cols[hubIdx]) || 50; // <-- use cols, not row
+            const scale = hubHeight / 50;
 
-              const hubHeight = parseFloat(row["Hub Height"]) || 50; // fallback if missing
-              const scale = hubHeight / 50; // adjust 50 as “base model height”
+            viewer.entities.add({
+                position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                model: {
+                    uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
+                    scale: scale,
+                    minimumPixelSize: 64,
+                    maximumScale: 200
+                },
+                description: `
+                    <b>Name:</b> ${cols[header.indexOf("properties.name")]}<br>
+                    <b>Operator:</b> ${cols[header.indexOf("Operator")]}<br>
+                    <b>Start Date:</b> ${cols[header.indexOf("Start Date")]}<br>
+                    <b>Diameter:</b> ${cols[header.indexOf("Diameter")]}<br>
+                    <b>Hub Height:</b> ${cols[hubIdx]}<br>
+                    <b>Total Height:</b> ${cols[header.indexOf("Total Height")]}<br>
+                    <b>Manufacturer:</b> ${cols[header.indexOf("Manufacturer")]}<br>
+                    <b>Model:</b> ${cols[header.indexOf("Model")]}<br>
+                    <b>Rated Power:</b> ${cols[header.indexOf("Rated Power")]}
+                `
+            });
 
-              viewer.entities.add({
-                  position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                  // point: { pixelSize: 6, color: Cesium.Color.CYAN },
-                  model: {
-                      uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
-                      scale: scale,
-                      minimumPixelSize: 64,      // ensures visibility when zoomed out
-                      maximumScale: 200
-                  },
-                  // Add description for popup
-                  description: `
-                      <b>Name:</b> ${cols[header.indexOf("properties.name")]}<br>
-                      <b>Operator:</b> ${cols[header.indexOf("Operator")]}<br>
-                      <b>Start Date:</b> ${cols[header.indexOf("Start Date")]}<br>
-                      <b>Diameter:</b> ${cols[header.indexOf("Diameter")]}<br>
-                      <b>Hub Height:</b> ${cols[header.indexOf("Hub Height")]}<br>
-                      <b>Total Height:</b> ${cols[header.indexOf("Total Height")]}<br>
-                      <b>Manufacturer:</b> ${cols[header.indexOf("Manufacturer")]}<br>
-                      <b>Model:</b> ${cols[header.indexOf("Model")]}<br>
-                      <b>Rated Power:</b> ${cols[header.indexOf("Rated Power")]}
-                  `
-              });
+        });
 
-          });
-      })
+        // Center camera after all entities are added
+        const positions = viewer.entities.values.map(e => e.position.getValue(Cesium.JulianDate.now()));
+        if (positions.length > 0) {
+            const rectangle = Cesium.Rectangle.fromCartesianArray(positions);
+            viewer.camera.flyTo({ destination: rectangle });
+        }
+    });
+
 
     // model: {
     //     uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
