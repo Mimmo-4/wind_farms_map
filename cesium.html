@@ -54,12 +54,23 @@ html, body, #cesiumContainer {
     console.log("Cesium script loaded");
     console.log("Creating Cesium viewer");
 
+    // const viewer = new Cesium.Viewer("cesiumContainer", {
+    // terrainProvider: Cesium.Terrain.fromWorldTerrain(),
+    // animation: false,
+    // timeline: false,
+    // baseLayerPicker: true
+    // });
+
     const viewer = new Cesium.Viewer("cesiumContainer", {
-    terrainProvider: Cesium.Terrain.fromWorldTerrain(),
+    imageryProvider: new Cesium.OpenStreetMapImageryProvider({
+        url: 'https://a.tile.openstreetmap.org/'
+    }),
+    baseLayerPicker: false,
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(), // flat Earth
     animation: false,
-    timeline: false,
-    baseLayerPicker: true
+    timeline: false
     });
+
 
     viewer.scene.globe.depthTestAgainstTerrain = true;
 
@@ -70,33 +81,46 @@ html, body, #cesiumContainer {
     .then(text => {
         const lines = text.trim().split("\n");
         const header = lines[0].split(",");
-    
-        const latIdx = header.indexOf("Lat");
-        const lonIdx = header.indexOf("Lon");
-    
-        if (latIdx === -1 || lonIdx === -1) {
-        console.error("Lat/Lon columns not found");
-        return;
+
+        // Find the index of geometry.coordinates
+        const coordIdx = header.indexOf("geometry.coordinates");
+        if (coordIdx === -1) {
+            console.error("geometry.coordinates column not found");
+            return;
         }
-    
+
+        // Loop through each row
         lines.slice(1).forEach(line => {
-        const cols = line.split(",");
-        const lat = parseFloat(cols[latIdx]);
-        const lon = parseFloat(cols[lonIdx]);
-    
-        if (isNaN(lat) || isNaN(lon)) return;
-    
-        viewer.entities.add({
-            position: Cesium.Cartesian3.fromDegrees(lon, lat),
-            point: {
-            pixelSize: 6,
-            color: Cesium.Color.CYAN,
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 1
-            }
+            // Split CSV while respecting quoted strings
+            const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if (!cols || cols.length <= coordIdx) return;
+
+            let coordStr = cols[coordIdx];
+            if (!coordStr) return;
+
+            // Remove quotes and brackets
+            coordStr = coordStr.replace(/["\[\]]/g, "");
+            const coords = coordStr.split(",");
+            if (coords.length !== 2) return;
+
+            const lon = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+            if (isNaN(lat) || isNaN(lon)) return;
+
+            console.log("Adding point:", lat, lon);
+
+            viewer.entities.add({
+                position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                point: { pixelSize: 6, color: Cesium.Color.CYAN }
+            });
         });
-        });
-    
+
+        // Center camera on all turbines
+        // const positions = viewer.entities.values.map(e => e.position.getValue(Cesium.JulianDate.now()));
+        // if (positions.length > 0) {
+        //     const rectangle = Cesium.Rectangle.fromCartesianArray(positions);
+        //     viewer.camera.flyTo({ destination: rectangle });
+        // }
         viewer.camera.flyHome(2);
     });
     </script>
