@@ -99,13 +99,13 @@ html, body, #cesiumContainer {
 
                 viewer.entities.add({
                     position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                    // point: { pixelSize: 6, color: Cesium.Color.CYAN },
-                    model: {
-                        uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
-                        scale: scale,
-                        minimumPixelSize: 64,      // ensures visibility when zoomed out
-                        maximumScale: 200
-                    },
+                    point: { pixelSize: 6, color: Cesium.Color.CYAN },
+                    // model: {
+                    //     uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
+                    //     scale: scale,
+                    //     minimumPixelSize: 64,      // ensures visibility when zoomed out
+                    //     maximumScale: 200
+                    // },
                     description: `
                         <b>Name:</b> ${row["properties.name"]}<br>
                         <b>Operator:</b> ${row["Operator"]}<br>
