@@ -54,19 +54,65 @@ html, body, #cesiumContainer {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <script>
+    function getParam(name) {
+      const v = new URLSearchParams(window.location.search).get(name);
+      return v !== null ? Number(v) : null;
+    }
+
     console.log("Cesium script loaded");
     console.log("Creating Cesium viewer");
 
     const viewer = new Cesium.Viewer("cesiumContainer", {
-    terrainProvider: Cesium.Terrain.fromWorldTerrain(),
+    imageryProvider: new Cesium.IonImageryProvider({
+      assetId: 2   // Cesium World Imagery
+    }),
+    terrainProvider: new Cesium.EllipsoidTerrainProvider({
+      ellipsoid: Cesium.Ellipsoid.WGS84
+    }),
+    
+    baseLayerPicker: true,
     animation: false,
-    timeline: false,
-    baseLayerPicker: true
+    timeline: false
     });
+    // viewer.scene.globe.show = true;
+    // viewer.camera.setView({
+    //   destination: Cesium.Cartesian3.fromDegrees(0, 0, 25_000_000)
+    // });
 
-    viewer.scene.globe.depthTestAgainstTerrain = true;
+
 
     console.log("Cesium viewer created", viewer);
+
+    const lat = getParam("lat");
+    const lon = getParam("lon");
+    const zoom = getParam("zoom");
+
+    function zoomToHeight(z) {
+      return 25000000 / Math.pow(2, z);
+    }
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(
+          lon,
+          lat,
+          zoom ? zoomToHeight(zoom) : 3_000_000
+        )
+      });
+    }
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      setTimeout(() => {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            lon,
+            lat,
+            zoom ? zoomToHeight(zoom) : 3_000_000
+          ),
+          duration: 1.2
+        });
+      }, 300);
+    }
 
     fetch("./data/wind_farms.csv")
     .then(r => r.text())
@@ -127,7 +173,9 @@ html, body, #cesiumContainer {
         const positions = viewer.entities.values.map(e => e.position.getValue(Cesium.JulianDate.now()));
         if (positions.length > 0) {
             const rectangle = Cesium.Rectangle.fromCartesianArray(positions);
-            viewer.camera.flyTo({ destination: rectangle });
+            // if (isNaN(lat) || isNaN(lon)) {
+            //   viewer.camera.flyTo({ destination: rectangle });
+            // }
         }
     });
 

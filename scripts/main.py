@@ -107,79 +107,110 @@ html_content = html_content.replace("<head>", "<head>\n" + manifest_block, 1)
 # --- Basemap dropdown + Update Now button (REAL HTML + JS) ---
 style_selector_html = """
 <div id="style-switcher">
-  <label for="map-style">Map style:</label>
-  <select id="map-style">
-    <option value="open-street-map">OpenStreetMap</option>
-    <option value="satellite">Satellite</option>
-    <option value="carto-voyager">Carto Voyager</option>
-    <option value="carto-darkmatter">Carto Darkmatter</option>
-  </select>
-  <button id="apply-style">Change style</button>
-  <small>Press <b>Shift+S</b> to change style</small>
+  <button id="change-style-btn">
+    🗺️ Change style
+  </button>
+  <small class="hint">Shift+S</small>
 </div>
 """
 
 view_switcher_html = """
 <div id="view-switcher">
-  <button onclick="location.href='cesium.html'">
-    🌍 3D Globe
+  <button id="open-3d">
+  🌍 3D Globe
   </button>
+
+  <script>
+    document.getElementById("open-3d").addEventListener("click", () => {
+      const plotlyDiv =
+        document.querySelector(".js-plotly-plot") ||
+        document.querySelector(".plotly");
+
+      if (!plotlyDiv || !plotlyDiv.layout || !plotlyDiv.layout.map) {
+        // fallback: just open Cesium
+        location.href = "cesium.html";
+        return;
+      }
+
+      const center = plotlyDiv.layout.map.center;
+      const zoom = plotlyDiv.layout.map.zoom ?? 5;
+
+      if (!center) {
+        location.href = "cesium.html";
+        return;
+      }
+
+      const url =
+        `cesium.html?lat=${center.lat}&lon=${center.lon}&zoom=${zoom}`;
+
+      console.log("Opening Cesium with:", url);
+      location.href = url;
+    });
+    </script>
+
+
+
+
 </div>
 """
 
 style_switcher_js = """
 <script>
 (function() {
-  // Run after DOM is ready
-  function ready(fn){ document.readyState !== 'loading' ? fn() : document.addEventListener('DOMContentLoaded', fn); }
+  function ready(fn){
+    document.readyState !== 'loading'
+      ? fn()
+      : document.addEventListener('DOMContentLoaded', fn);
+  }
 
   ready(function() {
-    // Find the Plotly figure div
     const plotlyDiv = document.querySelector('.js-plotly-plot, .plotly');
-    if (!plotlyDiv || !window.Plotly) {
-      console.warn('Plotly div not found or Plotly is not loaded.');
-      return;
-    }
+    if (!plotlyDiv || !window.Plotly) return;
 
-    const select = document.getElementById('map-style');
-    const applyBtn = document.getElementById('apply-style');
-    const styles = Array.from(select.options).map(opt => opt.value);
+    const styles = [
+      "open-street-map",
+      "satellite",
+      "carto-voyager",
+      "carto-darkmatter"
+    ];
 
-    // Restore last selection
-    const saved = localStorage.getItem('map_style_choice');
+    const btn = document.getElementById("change-style-btn");
+
+    let currentIndex = 0;
+
+    // Restore last style
+    const saved = localStorage.getItem("map_style_choice");
     if (saved && styles.includes(saved)) {
-      select.value = saved;
+      currentIndex = styles.indexOf(saved);
       applyStyle(saved);
     }
 
-    // Dropdown change
-    select.addEventListener('change', e => {
-      const style = e.target.value;
-      localStorage.setItem('map_style_choice', style);
-      applyStyle(style);
+    btn.addEventListener("click", () => {
+      nextStyle();
     });
 
-    // "Update now" button
-    applyBtn.addEventListener('click', () => applyStyle(select.value));
-
-    // Keyboard: Shift+S cycles styles
-    document.addEventListener('keydown', e => {
-      if (e.key.toLowerCase() === 's' && e.shiftKey) {
-        const idx = styles.indexOf(select.value);
-        const next = styles[(idx + 1) % styles.length];
-        select.value = next;
-        localStorage.setItem('map_style_choice', next);
-        applyStyle(next);
+    // Keyboard shortcut: Shift+S
+    document.addEventListener("keydown", e => {
+      if (e.key.toLowerCase() === "s" && e.shiftKey) {
+        nextStyle();
       }
     });
 
-    async function applyStyle(styleValue) {
+    function nextStyle() {
+      currentIndex = (currentIndex + 1) % styles.length;
+      const style = styles[currentIndex];
+      localStorage.setItem("map_style_choice", style);
+      applyStyle(style);
+    }
+
+    async function applyStyle(style) {
       try {
-        // MapLibre traces use layout.map.style
-        await Plotly.relayout(plotlyDiv, { 'map.style': styleValue });
-        console.log('Applied map style:', styleValue);
-      } catch(err) {
-        console.error('Failed to apply map style', err);
+        await Plotly.relayout(plotlyDiv, {
+          "map.style": style
+        });
+        console.log("Map style:", style);
+      } catch (err) {
+        console.error("Style change failed", err);
       }
     }
   });
@@ -188,70 +219,87 @@ style_switcher_js = """
 """
 
 
+
 # --- Responsive full-screen CSS ---
 custom_css = """
 <style>
-    /* Remove default spacing and force full viewport */
-    html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        width: 100%;
-        overflow: hidden; /* avoid scrollbars causing 'blank edges' */
-        background: #000; /* optional: makes edges obvious if any remain */
-    }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
 
-    /* Use dynamic viewport units when supported; fall back to 100vh */
-    #windfarm-map {
-        height: 100dvh;
-        width: 100dvw;
-        position: relative;   /* <-- important for overlays */
-        z-index: 1;   
-    }
-    @supports not (height: 100dvh) {
-        #windfarm-map {
-            height: 100vh;
-            width: 100vw;
-        }
-    }
+#windfarm-map {
+  height: 100dvh;
+  width: 100dvw;
+  position: relative;
+}
 
-    /* Optional: larger hover/modebar; these won't change layout size */
-    .hoverlayer .hovertext {
-        font-size: 200% !important;
-        padding: 20px !important;
-    }
-    .plotly .modebar-btn,
-    .plotly .dropdown {
-        font-size: 200% !important;
-    }
+@supports not (height: 100dvh) {
+  #windfarm-map {
+    height: 100vh;
+    width: 100vw;
+  }
+}
 
-    /* If you add UI controls, overlay them so they don’t push the map */
-    #style-switcher {
-        position: fixed;
-        top: 12px;
-        left: 12px;
-        z-index: 10000;
-        background: rgba(255,255,255,0.9);
-        padding: 6px 10px;
-        border-radius: 6px;
-        box-shadow: 0 2px 8px rgba(0,0,0,.15);
-    }
-    #view-switcher {
-      position: fixed;
-      top: 12px;
-      right: 12px;
-      z-index: 10001;
-    }
+/* === Buttons (desktop default) === */
+#view-switcher,
+#style-switcher {
+  position: fixed;
+  z-index: 10001;
+}
 
-    #view-switcher button {
-      font-size: 16px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      background: #2c3e50;
-      color: white;
-    }
+#view-switcher {
+  top: 12px;
+  right: 12px;
+}
+
+#style-switcher {
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#view-switcher button,
+#style-switcher button {
+  font-size: 16px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #2c3e50;
+  color: white;
+}
+
+#style-switcher .hint {
+  font-size: 11px;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* === MOBILE: BIG touch-friendly buttons === */
+@media (max-width: 768px) {
+  #view-switcher button,
+  #style-switcher button {
+    font-size: 22px;
+    padding: 16px 22px;
+    border-radius: 12px;
+  }
+
+  #style-switcher .hint {
+    font-size: 14px;
+  }
+}
+
+/* Bigger hover text on mobile */
+.hoverlayer .hovertext {
+  font-size: 200% !important;
+  padding: 20px !important;
+}
 </style>
 """
 
