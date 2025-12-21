@@ -218,8 +218,6 @@ style_switcher_js = """
 </script>
 """
 
-
-
 # --- Responsive full-screen CSS ---
 custom_css = """
 <style>
@@ -244,62 +242,41 @@ html, body {
   }
 }
 
-/* === Buttons (desktop default) === */
+/* === Buttons: fully responsive and touch-friendly === */
+#view-switcher button,
+#style-switcher button {
+  font-size: clamp(16px, 2.5vw, 28px);    /* scales with screen width */
+  padding: clamp(12px, 2vw, 24px) clamp(16px, 3vw, 28px); /* bigger touch area */
+  border-radius: clamp(6px, 1vw, 12px);
+  cursor: pointer;
+  background: #2c3e50;
+  color: white;
+  border: none;
+}
+
+/* Hint text scales too */
+#style-switcher .hint {
+  font-size: clamp(11px, 1.5vw, 16px);
+  opacity: 0.7;
+}
+
+/* Flex layout for buttons */
 #view-switcher,
 #style-switcher {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   position: fixed;
   z-index: 10001;
 }
 
-#view-switcher {
-  top: 12px;
-  right: 12px;
-}
-
-#style-switcher {
-  top: 12px;
-  left: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-#view-switcher button,
-#style-switcher button {
-  font-size: 16px;
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  background: #2c3e50;
-  color: white;
-}
-
-#style-switcher .hint {
-  font-size: 11px;
-  margin-top: 4px;
-  opacity: 0.7;
-}
-
-/* === MOBILE: BIG touch-friendly buttons === */
-@media (max-width: 768px) {
-  #view-switcher button,
-  #style-switcher button {
-    font-size: 22px;
-    padding: 16px 22px;
-    border-radius: 12px;
-  }
-
-  #style-switcher .hint {
-    font-size: 14px;
-  }
-}
-
 /* Bigger hover text on mobile */
-.hoverlayer .hovertext {
-  font-size: 200% !important;
-  padding: 20px !important;
+#view-switcher button:hover,
+#style-switcher button:hover {
+  transform: scale(1.05);
+  transition: transform 0.15s ease;
 }
+
 </style>
 """
 
