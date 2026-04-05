@@ -42,24 +42,24 @@ df["Rated Power (kW)"] = df["Rated Power"].apply(parse_power_kw)
 df["Rated Power (MW)"] = (df["Rated Power (kW)"] / 1000).round(3)
 
 # Discrete power categories — identical thresholds as the 3D globe
-CAT_ORDER = ["< 0.5 MW", "0.5 – 2 MW", "2 – 4 MW", "4 – 8 MW", "> 8 MW", "Unknown"]
+CAT_ORDER = ["< 0.5 MW", "0.5 – 5 MW", "5 – 10 MW", "10 – 15 MW", "> 15 MW", "Unknown"]
 CAT_COLORS = {
     "< 0.5 MW":   "#3366ff",
-    "0.5 – 2 MW": "#00ccff",
-    "2 – 4 MW":   "#33e05a",
-    "4 – 8 MW":   "#ffd000",
-    "> 8 MW":     "#ff4b1a",
+    "0.5 – 5 MW": "#00ccff",
+    "5 – 10 MW":  "#33e05a",
+    "10 – 15 MW": "#ffd000",
+    "> 15 MW":    "#ff4b1a",
     "Unknown":    "#888888",
 }
 
 
 def power_cat(kw):
-    if pd.isna(kw):  return "Unknown"
-    if kw < 500:     return "< 0.5 MW"
-    if kw < 2000:    return "0.5 – 2 MW"
-    if kw < 4000:    return "2 – 4 MW"
-    if kw < 8000:    return "4 – 8 MW"
-    return "> 8 MW"
+    if pd.isna(kw):   return "Unknown"
+    if kw < 500:      return "< 0.5 MW"
+    if kw < 5000:     return "0.5 – 5 MW"
+    if kw < 10000:    return "5 – 10 MW"
+    if kw < 15000:    return "10 – 15 MW"
+    return "> 15 MW"
 
 
 df["Power Category"] = df["Rated Power (kW)"].apply(power_cat)
@@ -99,19 +99,7 @@ fig.update_layout(
     autosize=True,
     margin=dict(l=0, r=0, t=0, b=0),
     map_style="open-street-map",
-    showlegend=True,
-    legend=dict(
-        x=0.99, y=0.01,
-        xanchor="right", yanchor="bottom",
-        bgcolor="rgba(12,22,38,0.85)",
-        bordercolor="rgba(100,200,255,0.18)",
-        borderwidth=1,
-        font=dict(color="white", size=12),
-        title=dict(
-            text="Rated Power",
-            font=dict(color="rgba(160,210,255,0.75)", size=11),
-        ),
-    ),
+    showlegend=False,
 )
 
 # Save to HTML
@@ -130,6 +118,9 @@ fig.write_html(
 manifest_block = """
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2c3e50">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 """
 
 # Service worker registration for <body>
@@ -149,6 +140,19 @@ with open(html_file, "r", encoding="utf-8") as f:
 
 # Insert manifest block into <head>
 html_content = html_content.replace("<head>", "<head>\n" + manifest_block, 1)
+
+# --- Custom legend (replaces Plotly's internal legend which disappears on zoom) ---
+legend_2d_html = """
+<div id="legend-2d">
+  <h4>Rated Power</h4>
+  <div class="leg-row"><div class="leg-dot" style="background:#3366ff"></div><span>&lt; 0.5 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#00ccff"></div><span>0.5 &ndash; 5 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#33e05a"></div><span>5 &ndash; 10 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ffd000"></div><span>10 &ndash; 15 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ff4b1a"></div><span>&gt; 15 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#888"></div><span>Unknown</span></div>
+</div>
+"""
 
 # --- Basemap dropdown + Update Now button (REAL HTML + JS) ---
 style_selector_html = """
@@ -265,7 +269,7 @@ style_switcher_js = """
             lon: [longitude],
             text: ['You are here'],
             textposition: 'top center',
-            textfont: { size: 13, color: 'white' },
+            textfont: { size: 13, color: 'black' },
             marker: {
               size: 20,
               color: '#4285F4',
@@ -349,6 +353,7 @@ html, body {
 
 #view-switcher button,
 #style-switcher button {
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: clamp(14px, 2vw, 18px);
   padding: clamp(9px, 1.6vw, 13px) clamp(13px, 2.2vw, 19px);
   border-radius: 9px;
@@ -383,20 +388,39 @@ html, body {
   border-radius: 20px; padding: 7px 20px;
   color: rgba(190, 220, 255, 0.88);
   font-size: clamp(11px, 1.4vw, 14px);
-  font-family: system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   z-index: 10001; white-space: nowrap;
   pointer-events: none;
 }
+
+/* Custom legend (fixed-position so it never disappears on zoom) */
+#legend-2d {
+  position: fixed; bottom: 52px; right: 16px;
+  background: rgba(12,22,38,0.85); backdrop-filter: blur(10px);
+  border: 1px solid rgba(100,200,255,0.18); border-radius: 11px;
+  padding: 12px 16px; color: white;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px; z-index: 10001;
+}
+#legend-2d h4 { margin: 0 0 9px; font-size: 11px; color: rgba(160,210,255,0.75); text-transform: uppercase; letter-spacing: 0.8px; }
+.leg-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.leg-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
 /* Mobile */
 @media (max-width: 768px) {
   #view-switcher button,
   #style-switcher button {
-    font-size: 20px;
-    padding: 15px 20px;
-    border-radius: 12px;
+    font-size: 22px;
+    padding: 18px 26px;
+    border-radius: 14px;
   }
-  #style-switcher .hint { font-size: 13px; }
+  #style-switcher .hint { font-size: 14px; }
+  #legend-2d {
+    font-size: 15px;
+    padding: 14px 20px;
+  }
+  #legend-2d h4 { font-size: 13px; }
+  .leg-dot { width: 13px; height: 13px; }
 }
 
 /* Hover tooltip text */
@@ -420,6 +444,7 @@ html_content = html_content.replace(
     "<body>\n"
     + view_switcher_html + "\n"
     + style_selector_html + "\n"
+    + legend_2d_html + "\n"
     + style_switcher_js,
     1
 )
