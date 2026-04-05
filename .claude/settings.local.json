@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/patch_index.py)",
+      "Bash(where python3.exe)",
+      "Read(//c/Users/nicit/AppData/Local/Programs/**)",
+      "Read(//c/Users/nicit/AppData/Local/**)",
+      "Read(//c/ProgramData/**)",
+      "Read(//c/Users/nicit/**)",
+      "Bash(/c/Users/nicit/programs/conda/python.exe scripts/patch_index.py)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/nicit/programs/conda/python.exe scripts/patch_index.py)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/nicit/programs/conda/python.exe scripts/_patch_cesium.py)"
+    ]
+  }
+}

@@ -2,193 +2,477 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Wind Farms – 3D Globe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wind Farms &#x2013; 3D Globe</title>
 
-<!-- Cesium -->
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <style>
 html, body, #cesiumContainer {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-  z-index: 1;
+  width: 100%; height: 100%; margin: 0; overflow: hidden;
 }
 
-#view-switcher {
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 10001;
+/* ── Overlay buttons ─────────────────────────────────────────────── */
+#overlay {
+  position: fixed; top: 12px; left: 12px; z-index: 10001;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+}
+.overlay-btn {
+  font-size: clamp(13px, 2.2vw, 18px);
+  padding: clamp(9px, 1.8vw, 14px) clamp(13px, 2.5vw, 20px);
+  border-radius: 9px; border: 1px solid rgba(100, 200, 255, 0.2);
+  cursor: pointer; background: rgba(20, 35, 55, 0.88);
+  backdrop-filter: blur(10px); color: white;
+  transition: transform 0.15s, background 0.15s; white-space: nowrap;
+}
+.overlay-btn:hover {
+  background: rgba(40, 70, 110, 0.95);
+  border-color: rgba(100, 200, 255, 0.45); transform: scale(1.04);
+}
+.overlay-btn:disabled { opacity: 0.5; cursor: wait; transform: none; }
+
+/* ── Stats bar ───────────────────────────────────────────────────── */
+#stats-bar {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: rgba(12, 22, 38, 0.82); backdrop-filter: blur(10px);
+  border: 1px solid rgba(100, 200, 255, 0.18); border-radius: 20px;
+  padding: 7px 20px; color: rgba(190, 220, 255, 0.88);
+  font-size: clamp(11px, 1.4vw, 14px); font-family: system-ui, sans-serif;
+  z-index: 10001; white-space: nowrap; pointer-events: none;
 }
 
-#view-switcher button {
-  font-size: 16px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  background: #2c3e50;
-  color: white;
+/* ── Loading overlay ─────────────────────────────────────────────── */
+#loading-overlay {
+  position: fixed; inset: 0; background: rgba(8, 16, 30, 0.94);
+  backdrop-filter: blur(6px); display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  z-index: 20000; font-family: system-ui, sans-serif;
+}
+.spinner {
+  width: 52px; height: 52px;
+  border: 4px solid rgba(80, 180, 255, 0.15);
+  border-top-color: rgba(80, 180, 255, 0.85);
+  border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 22px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-title { font-size: 20px; font-weight: 600; color: rgba(200,230,255,0.95); margin-bottom: 10px; }
+#loading-msg   { font-size: 14px; color: rgba(140,185,235,0.8); margin-bottom: 6px; }
+#loading-sub   { font-size: 12px; color: rgba(100,145,200,0.6); }
+#loading-bar-wrap {
+  margin-top: 18px; width: 220px; height: 4px;
+  background: rgba(80,150,220,0.15); border-radius: 2px; overflow: hidden;
+}
+#loading-bar {
+  height: 100%; width: 0%; background: rgba(80,180,255,0.7);
+  border-radius: 2px; transition: width 0.2s;
+}
+
+/* ── Legend ──────────────────────────────────────────────────────── */
+#legend {
+  position: fixed; bottom: 52px; right: 16px;
+  background: rgba(12,22,38,0.85); backdrop-filter: blur(10px);
+  border: 1px solid rgba(100,200,255,0.18); border-radius: 11px;
+  padding: 12px 16px; color: white; font-family: system-ui, sans-serif;
+  font-size: 12px; z-index: 10001;
+}
+#legend h4 { margin: 0 0 9px; font-size: 11px; color: rgba(160,210,255,0.75); text-transform: uppercase; letter-spacing: 0.8px; }
+.leg-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.leg-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Turbine info panel ──────────────────────────────────────────── */
+#turbine-info {
+  position: fixed; top: 50%; right: 16px; transform: translateY(-50%);
+  width: clamp(260px, 28vw, 340px);
+  background: rgba(10,20,36,0.95); backdrop-filter: blur(18px);
+  border: 1px solid rgba(100,200,255,0.28); border-radius: 14px;
+  color: white; font-family: system-ui, sans-serif;
+  z-index: 10002; display: none; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+}
+#info-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 18px 12px; border-bottom: 1px solid rgba(100,200,255,0.12);
+  background: rgba(80,160,255,0.07);
+}
+#info-title { font-size: clamp(14px, 1.8vw, 17px); font-weight: 600; line-height: 1.3; }
+#info-close {
+  background: none; border: none; color: rgba(255,255,255,0.5);
+  font-size: 24px; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0;
+}
+#info-close:hover { color: white; }
+#info-body { padding: 14px 18px; max-height: 62vh; overflow-y: auto; }
+.i-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.055);
+}
+.i-row:last-child { border-bottom: none; }
+.i-label { font-size: 11px; color: rgba(130,190,255,0.75); text-transform: uppercase; letter-spacing: 0.6px; flex-shrink: 0; padding-top: 1px; }
+.i-value { font-size: clamp(13px, 1.6vw, 15px); color: #eef4ff; text-align: right; word-break: break-word; }
+.power-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+
+@media (max-width: 768px) {
+  #turbine-info { top: auto; bottom: 0; right: 0; left: 0; width: 100%; border-radius: 16px 16px 0 0; transform: none; }
+  #info-body { max-height: 52vh; }
 }
 </style>
 </head>
-
 <body>
 
-<div id="view-switcher">
-  <button onclick="location.href='index.html'">
-    🗺️ 2D Map
-  </button>
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-title">&#x1F32C;&#xFE0F; Wind Farms 3D</div>
+  <div id="loading-msg">Connecting&hellip;</div>
+  <div id="loading-sub">&nbsp;</div>
+  <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+</div>
+
+<div id="overlay">
+  <button class="overlay-btn" id="btn-back">&#x1F5FA;&#xFE0F; 2D Map</button>
+</div>
+
+<div id="stats-bar">&#x1F32C;&#xFE0F; <span id="turbine-count">Loading&hellip;</span> turbines worldwide</div>
+
+<div id="legend">
+  <h4>Rated Power</h4>
+  <div class="leg-row"><div class="leg-dot" style="background:#3366ff"></div><span>&lt; 0.5 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#00ccff"></div><span>0.5 &ndash; 2 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#33e05a"></div><span>2 &ndash; 4 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ffd000"></div><span>4 &ndash; 8 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ff4b1a"></div><span>&gt; 8 MW</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#888"></div><span>Unknown</span></div>
+</div>
+
+<div id="turbine-info">
+  <div id="info-header">
+    <span id="info-title">Wind Turbine</span>
+    <button id="info-close">&times;</button>
+  </div>
+  <div id="info-body"></div>
 </div>
 
 <div id="cesiumContainer"></div>
 
 <script>
-    Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlMTZhOTYzMC0wNGNlLTQ5NzctYWRhYS03YWFkYzZmNTVmNGQiLCJpZCI6MzcxMjU2LCJpYXQiOjE3NjYxNTc0Nzd9.4RV9x9K8HkAhF8iQKw5ICLzwWOgRMsMH4Aye7WK4Ixw";
-    console.log("Ion token:", Cesium.Ion.defaultAccessToken);
-</script>
+// ── Viewer ────────────────────────────────────────────────────────────────────
+Cesium.Ion.defaultAccessToken =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlMTZhOTYzMC0wNGNlLTQ5NzctYWRhYS03YWFkYzZmNTVmNGQiLCJpZCI6MzcxMjU2LCJpYXQiOjE3NjYxNTc0Nzd9.4RV9x9K8HkAhF8iQKw5ICLzwWOgRMsMH4Aye7WK4Ixw";
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+var viewer = new Cesium.Viewer("cesiumContainer", {
+  imageryProvider:    new Cesium.IonImageryProvider({ assetId: 2 }),
+  terrainProvider:    new Cesium.EllipsoidTerrainProvider({ ellipsoid: Cesium.Ellipsoid.WGS84 }),
+  baseLayerPicker:    true,
+  animation:          false,
+  timeline:           false,
+  infoBox:            false,
+  selectionIndicator: false,
+});
 
-<script>
-    function getParam(name) {
-      const v = new URLSearchParams(window.location.search).get(name);
-      return v !== null ? Number(v) : null;
+// ── URL params → initial camera ───────────────────────────────────────────────
+function getParam(name) {
+  var v = new URLSearchParams(window.location.search).get(name);
+  return v !== null ? Number(v) : null;
+}
+var initLat = getParam("lat"), initLon = getParam("lon"), initZoom = getParam("zoom");
+function zoomToHeight(z) { return 25000000 / Math.pow(2, z != null ? z : 5); }
+if (Number.isFinite(initLat) && Number.isFinite(initLon)) {
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(initLon, initLat, zoomToHeight(initZoom))
+  });
+}
+
+// ── Back to 2D ────────────────────────────────────────────────────────────────
+document.getElementById("btn-back").addEventListener("click", function () {
+  var pos  = viewer.camera.positionCartographic;
+  var lat  = Cesium.Math.toDegrees(pos.latitude).toFixed(5);
+  var lon  = Cesium.Math.toDegrees(pos.longitude).toFixed(5);
+  var zoom = Math.max(1, Math.min(18, Math.log2(25000000 / pos.height))).toFixed(2);
+  location.href = "index.html?lat=" + lat + "&lon=" + lon + "&zoom=" + zoom;
+});
+
+// ── Colour palette (precomputed — reused across all 246k points) ──────────────
+var C_GRAY   = new Cesium.Color(0.55, 0.55, 0.55, 0.85);
+var C_BLUE   = new Cesium.Color(0.20, 0.40, 1.00, 0.90);
+var C_CYAN   = new Cesium.Color(0.00, 0.80, 1.00, 0.90);
+var C_GREEN  = new Cesium.Color(0.20, 0.88, 0.35, 0.90);
+var C_YELLOW = new Cesium.Color(1.00, 0.82, 0.00, 0.90);
+var C_RED    = new Cesium.Color(1.00, 0.29, 0.10, 0.90);
+
+function parsePowerKw(raw) {
+  if (raw == null || raw === "") return NaN;
+  var s = String(raw).trim().replace(",", ".");
+  var gw = s.match(/^([0-9.]+)\s*GW$/i);
+  if (gw) return parseFloat(gw[1]) * 1000000;
+  var mw = s.match(/^([0-9.]+)\s*MW$/i);
+  if (mw) return parseFloat(mw[1]) * 1000;
+  var kw = s.match(/^([0-9.]+)\s*kW$/i);
+  if (kw) return parseFloat(kw[1]);
+  var w = s.match(/^([0-9.]+)\s*W$/i);
+  if (w) return parseFloat(w[1]) / 1000;
+  var n = Number(s);
+  if (isNaN(n)) return NaN;
+  // Bare numbers > 50,000 kW were stored in wrong units (e.g. 2850000 → 2850 kW)
+  if (n > 50000) n = n / 1000;
+  return n;
+}
+
+function powerToColor(kw) {
+  var k = parsePowerKw(kw);
+  if (!k || isNaN(k)) return C_GRAY;
+  if (k < 500)  return C_BLUE;
+  if (k < 2000) return C_CYAN;
+  if (k < 4000) return C_GREEN;
+  if (k < 8000) return C_YELLOW;
+  return C_RED;
+}
+
+function diameterToSize(d) {
+  var n = Number(d);
+  return (!n || isNaN(n)) ? 7 : Math.max(5, Math.min(16, n / 13));
+}
+
+// ── Info panel ────────────────────────────────────────────────────────────────
+var panel     = document.getElementById("turbine-info");
+var infoTitle = document.getElementById("info-title");
+var infoBody  = document.getElementById("info-body");
+
+document.getElementById("info-close").addEventListener("click", hidePanel);
+document.addEventListener("keydown", function (e) { if (e.key === "Escape") hidePanel(); });
+function hidePanel() { panel.style.display = "none"; }
+
+function fmt(v, sfx) {
+  if (v == null || v === "") return "\u2014";
+  var s = String(v).trim();
+  return (s === "" || s === "nan" || s === "NaN") ? "\u2014" : (sfx ? s + " " + sfx : s);
+}
+
+var BHEX = ["#8c8c8c","#3366ff","#00ccff","#33e05a","#ffd000","#ff4b1a"];
+function powerBadge(raw) {
+  var k = parsePowerKw(raw);
+  if (!k || isNaN(k)) return "\u2014";
+  var idx = k < 500 ? 1 : k < 2000 ? 2 : k < 4000 ? 3 : k < 8000 ? 4 : 5;
+  var h = BHEX[idx];
+  var mw = (k / 1000).toFixed(2);
+  return "<span class='power-badge' style='background:" + h + "22;border:1px solid " +
+         h + "88;color:" + h + "'>" + mw + " MW</span>";
+}
+
+function showPanel(t) {
+  var name = "Wind Turbine";
+  [t.name, t.op].forEach(function (v) {
+    if (!name || name === "Wind Turbine") {
+      if (v && String(v).trim() && String(v).trim() !== "nan") name = String(v).trim();
     }
+  });
+  infoTitle.textContent = name;
+  var coords = (isNaN(t.lat) || isNaN(t.lon)) ? "\u2014"
+    : t.lat.toFixed(5) + "\u00b0,\u00a0" + t.lon.toFixed(5) + "\u00b0";
+  var rows = [
+    ["Operator",       fmt(t.op)],
+    ["Start Year",     fmt(t.date)],
+    ["Manufacturer",   fmt(t.mfg)],
+    ["Model",          fmt(t.model)],
+    ["Rated Power",    powerBadge(t.power)],
+    ["Rotor Diameter", fmt(t.diam,  "m")],
+    ["Hub Height",     fmt(t.hub,   "m")],
+    ["Total Height",   fmt(t.total, "m")],
+    ["Country",        fmt(t.country)],
+    ["Coordinates",    coords],
+  ];
+  infoBody.innerHTML = rows.map(function (r) {
+    return "<div class='i-row'><span class='i-label'>" + r[0] +
+           "</span><span class='i-value'>" + r[1] + "</span></div>";
+  }).join("");
+  panel.style.display = "block";
+}
 
-    console.log("Cesium script loaded");
-    console.log("Creating Cesium viewer");
+// ── PointPrimitiveCollection — one GPU vertex per turbine (GL_POINTS) ─────────
+var points      = viewer.scene.primitives.add(new Cesium.PointPrimitiveCollection());
+var turbineData = [];
+var totalAdded  = 0;
 
-    const viewer = new Cesium.Viewer("cesiumContainer", {
-    imageryProvider: new Cesium.IonImageryProvider({
-      assetId: 2   // Cesium World Imagery
-    }),
-    terrainProvider: new Cesium.EllipsoidTerrainProvider({
-      ellipsoid: Cesium.Ellipsoid.WGS84
-    }),
-    
-    baseLayerPicker: true,
-    animation: false,
-    timeline: false
+viewer.screenSpaceEventHandler.setInputAction(function (e) {
+  var p = viewer.scene.pick(e.position);
+  if (Cesium.defined(p) && typeof p.id === "number") {
+    showPanel(turbineData[p.id]);
+  } else {
+    hidePanel();
+  }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+// ── Loading UI refs ───────────────────────────────────────────────────────────
+var loadingOverlay = document.getElementById("loading-overlay");
+var loadingMsg     = document.getElementById("loading-msg");
+var loadingSub     = document.getElementById("loading-sub");
+var loadingBar     = document.getElementById("loading-bar");
+var turbineCountEl = document.getElementById("turbine-count");
+
+// ── Render a batch of parsed rows, yielding to the browser between batches ────
+function renderBatch(rows, idx) {
+  var BATCH = 6000;
+  var end = Math.min(idx + BATCH, rows.length);
+  for (var i = idx; i < end; i++) {
+    var row = rows[i];
+    var lat = Number(row["Lat"]);
+    var lon = Number(row["Lon"]);
+    if (isNaN(lat) || isNaN(lon)) continue;
+    var dataIdx = turbineData.length;
+    turbineData.push({
+      name: row["properties.name"], op: row["Operator"], date: row["Start Date"],
+      mfg:  row["Manufacturer"],   model: row["Model"],  power: row["Rated Power"],
+      diam: row["Diameter"], hub: row["Hub Height"], total: row["Total Height"],
+      country: row["Country"], lat: lat, lon: lon,
     });
-    // viewer.scene.globe.show = true;
-    // viewer.camera.setView({
-    //   destination: Cesium.Cartesian3.fromDegrees(0, 0, 25_000_000)
-    // });
+    points.add({
+      position:  Cesium.Cartesian3.fromDegrees(lon, lat),
+      color:     powerToColor(row["Rated Power"]),
+      pixelSize: diameterToSize(row["Diameter"]),
+      id:        dataIdx,
+    });
+    totalAdded++;
+  }
+  var pct = Math.round(end / rows.length * 100);
+  loadingBar.style.width     = pct + "%";
+  turbineCountEl.textContent = totalAdded.toLocaleString();
+  loadingSub.textContent     = totalAdded.toLocaleString() + " / " + rows.length.toLocaleString();
 
+  if (end < rows.length) {
+    requestAnimationFrame(function () { renderBatch(rows, end); });
+  } else {
+    loadingOverlay.style.display = "none";
+  }
+}
 
+// ── Download CSV with progress, then parse + render ───────────────────────────
+// Using fetch + ReadableStream instead of PapaParse worker (worker mode fails
+// when PapaParse is loaded from CDN due to Blob URL / CORS restrictions).
+loadingMsg.textContent = "Downloading dataset\u2026";
 
-    console.log("Cesium viewer created", viewer);
+fetch("./data/wind_farms.csv")
+  .then(function (response) {
+    if (!response.ok) throw new Error("HTTP " + response.status);
 
-    const lat = getParam("lat");
-    const lon = getParam("lon");
-    const zoom = getParam("zoom");
+    var contentLength = parseInt(response.headers.get("content-length") || "0", 10);
+    var reader  = response.body.getReader();
+    var chunks  = [];
+    var received = 0;
 
-    function zoomToHeight(z) {
-      return 25000000 / Math.pow(2, z);
-    }
-
-    if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(
-          lon,
-          lat,
-          zoom ? zoomToHeight(zoom) : 3_000_000
-        )
+    function pump() {
+      return reader.read().then(function (result) {
+        if (result.done) {
+          // Assemble full text and move to parse step
+          return new Blob(chunks).text();
+        }
+        chunks.push(result.value);
+        received += result.value.byteLength;
+        if (contentLength > 0) {
+          loadingBar.style.width = Math.round(received / contentLength * 60) + "%";
+        }
+        loadingSub.textContent = Math.round(received / 1048576) + " MB downloaded";
+        return pump();
       });
     }
 
-    if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      setTimeout(() => {
-        viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(
-            lon,
-            lat,
-            zoom ? zoomToHeight(zoom) : 3_000_000
-          ),
-          duration: 1.2
-        });
-      }, 300);
-    }
+    return pump();
+  })
+  .then(function (csvText) {
+    loadingMsg.textContent = "Parsing data\u2026";
+    loadingBar.style.width = "65%";
+    loadingSub.textContent = "";
 
-    fetch("./data/wind_farms.csv")
-    .then(r => r.text())
-    .then(text => {
-        const lines = text.trim().split("\n");
-        const header = lines[0].split(",");
-
-        const coordIdx = header.indexOf("geometry.coordinates");
-        const hubIdx = header.indexOf("Hub Height");  // <-- index for hub height
-        if (coordIdx === -1) {
-            console.error("geometry.coordinates column not found");
-            return;
-        }
-
-        lines.slice(1).forEach(line => {
-            const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-            if (!cols || cols.length <= coordIdx) return;
-
-            let coordStr = cols[coordIdx];
-            if (!coordStr) return;
-
-            coordStr = coordStr.replace(/["\[\]]/g, "");
-            const coords = coordStr.split(",");
-            if (coords.length !== 2) return;
-
-            const lon = parseFloat(coords[0]);
-            const lat = parseFloat(coords[1]);
-            if (isNaN(lat) || isNaN(lon)) return;
-
-            // const hubHeight = parseFloat(cols[hubIdx]) || 50; // <-- use cols, not row
-            // const scale = hubHeight / 50;
-
-            viewer.entities.add({
-                position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                point: { pixelSize: 6, color: Cesium.Color.CYAN },
-                // model: {
-                //     uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
-                //     scale: scale,
-                //     minimumPixelSize: 64,
-                //     maximumScale: 200
-                // },
-                description: `
-                    <b>Name:</b> ${cols[header.indexOf("properties.name")]}<br>
-                    <b>Operator:</b> ${cols[header.indexOf("Operator")]}<br>
-                    <b>Start Date:</b> ${cols[header.indexOf("Start Date")]}<br>
-                    <b>Diameter:</b> ${cols[header.indexOf("Diameter")]}<br>
-                    <b>Hub Height:</b> ${cols[hubIdx]}<br>
-                    <b>Total Height:</b> ${cols[header.indexOf("Total Height")]}<br>
-                    <b>Manufacturer:</b> ${cols[header.indexOf("Manufacturer")]}<br>
-                    <b>Model:</b> ${cols[header.indexOf("Model")]}<br>
-                    <b>Rated Power:</b> ${cols[header.indexOf("Rated Power")]}
-                `
-            });
-
-        });
-
-        // Center camera after all entities are added
-        const positions = viewer.entities.values.map(e => e.position.getValue(Cesium.JulianDate.now()));
-        if (positions.length > 0) {
-            const rectangle = Cesium.Rectangle.fromCartesianArray(positions);
-            // if (isNaN(lat) || isNaN(lon)) {
-            //   viewer.camera.flyTo({ destination: rectangle });
-            // }
-        }
+    // Give the browser one frame to paint the "Parsing" message
+    requestAnimationFrame(function () {
+      var result = Papa.parse(csvText, {
+        header:         true,
+        dynamicTyping:  true,
+        skipEmptyLines: true,
+      });
+      loadingMsg.textContent = "Rendering turbines\u2026";
+      renderBatch(result.data, 0);
     });
+  })
+  .catch(function (err) {
+    loadingMsg.textContent = "Error loading data";
+    loadingSub.textContent = String(err);
+    console.error(err);
+  });
 
+// ── Geolocation (auto, no button) ────────────────────────────────────────────
+var userEntities = [];
 
-    // model: {
-    //     uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Windmill/glTF/Windmill.gltf',
-    //     scale: scale,
-    //     minimumPixelSize: 64,      // ensures visibility when zoomed out
-    //     maximumScale: 200
-    // },
-  </script>
-    
+function doGeolocate(flyTo) {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    function (pos) {
+      var lat      = pos.coords.latitude;
+      var lon      = pos.coords.longitude;
+      var accuracy = pos.coords.accuracy;
+
+      userEntities.forEach(function (e) { viewer.entities.remove(e); });
+      userEntities = [];
+
+      var cPos = Cesium.Cartesian3.fromDegrees(lon, lat);
+
+      if (accuracy && accuracy < 100000) {
+        userEntities.push(viewer.entities.add({
+          position: cPos,
+          ellipse: {
+            semiMajorAxis: accuracy,
+            semiMinorAxis: accuracy,
+            material:     new Cesium.ColorMaterialProperty(
+                            Cesium.Color.fromCssColorString("#4285F4").withAlpha(0.12)),
+            outline:      true,
+            outlineColor: Cesium.Color.fromCssColorString("#4285F4").withAlpha(0.45),
+            outlineWidth: 1.5,
+            height:       0,
+          },
+        }));
+      }
+
+      userEntities.push(viewer.entities.add({
+        position: cPos,
+        point: {
+          pixelSize:  20,
+          color:      Cesium.Color.fromCssColorString("#4285F4"),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 3,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text:              "You are here",
+          font:              "bold 13px system-ui, sans-serif",
+          fillColor:         Cesium.Color.WHITE,
+          outlineColor:      Cesium.Color.BLACK,
+          outlineWidth:      2,
+          style:             Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin:    Cesium.VerticalOrigin.BOTTOM,
+          horizontalOrigin:  Cesium.HorizontalOrigin.CENTER,
+          pixelOffset:       new Cesium.Cartesian2(0, -28),
+          showBackground:    true,
+          backgroundColor:   new Cesium.Color(0.06, 0.17, 0.26, 0.75),
+          backgroundPadding: new Cesium.Cartesian2(8, 4),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      }));
+
+      if (flyTo) {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(lon, lat, 150000),
+          duration: 1.8,
+        });
+      }
+
+    },
+    function () { /* silently ignore geolocation errors on auto-request */ },
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 120000 }
+  );
+}
+
+// Auto-geolocate on every load; fly only when not navigating from 2D map
+doGeolocate(!Number.isFinite(initLat) || !Number.isFinite(initLon));
+</script>
+
 </body>
 </html>
-
-

@@ -10,3 +10,4 @@ data/wind_farms_example.csv
 data/wind_farms_old.csv
 data/wind_farms_with_countries.csv
 src/__pycache
+CLAUDE.md

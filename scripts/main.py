@@ -1,25 +1,118 @@
+import re
 import plotly.express as px
 import pandas as pd
 
-df = pd.read_csv("data/wind_farms.csv")
+df = pd.read_csv("data/wind_farms.csv", low_memory=False)
 df["Diameter"] = df["Diameter"].fillna(50)
 
-fig = px.scatter_map(df, lat="Lat", lon="Lon", 
-                    size="Diameter",
-                    zoom=5, hover_data=["Diameter", "Hub Height", "Total Height", "Manufacturer", "Model", "Operator", "Rated Power", "Start Date"],   # country, wind farm, last update
-                    )
+
+def parse_power_kw(raw):
+    """Parse a raw power string/number to kW. Returns NaN if unparseable."""
+    if pd.isna(raw):
+        return float("nan")
+    if isinstance(raw, (int, float)):
+        n = float(raw)
+        # Bare numbers > 50 000 were stored as kW but are actually MW values
+        # (e.g. 2 850 000 → 2 850 kW = 2.85 MW)
+        if n > 50_000:
+            n /= 1000
+        return n if n > 0 else float("nan")
+    s = str(raw).strip().replace(",", ".")
+    m = re.match(r"^([0-9.]+)\s*(GW|MW|kW|W)$", s, re.IGNORECASE)
+    if m:
+        val, unit = float(m.group(1)), m.group(2).lower()
+        if unit == "gw":
+            return val * 1_000_000
+        if unit == "mw":
+            return val * 1000
+        if unit == "kw":
+            return val
+        if unit == "w":
+            return val / 1000
+    m2 = re.match(r"^([0-9.]+)$", s)
+    if m2:
+        n = float(m2.group(1))
+        if n > 50_000:
+            n /= 1000
+        return n if n > 0 else float("nan")
+    return float("nan")
+
+
+df["Rated Power (kW)"] = df["Rated Power"].apply(parse_power_kw)
+df["Rated Power (MW)"] = (df["Rated Power (kW)"] / 1000).round(3)
+
+# Discrete power categories — identical thresholds as the 3D globe
+CAT_ORDER = ["< 0.5 MW", "0.5 – 2 MW", "2 – 4 MW", "4 – 8 MW", "> 8 MW", "Unknown"]
+CAT_COLORS = {
+    "< 0.5 MW":   "#3366ff",
+    "0.5 – 2 MW": "#00ccff",
+    "2 – 4 MW":   "#33e05a",
+    "4 – 8 MW":   "#ffd000",
+    "> 8 MW":     "#ff4b1a",
+    "Unknown":    "#888888",
+}
+
+
+def power_cat(kw):
+    if pd.isna(kw):  return "Unknown"
+    if kw < 500:     return "< 0.5 MW"
+    if kw < 2000:    return "0.5 – 2 MW"
+    if kw < 4000:    return "2 – 4 MW"
+    if kw < 8000:    return "4 – 8 MW"
+    return "> 8 MW"
+
+
+df["Power Category"] = df["Rated Power (kW)"].apply(power_cat)
+
+fig = px.scatter_map(
+    df, lat="Lat", lon="Lon",
+    size="Diameter",
+    color="Power Category",
+    color_discrete_map=CAT_COLORS,
+    category_orders={"Power Category": CAT_ORDER},
+    zoom=5,
+    hover_name="properties.name",
+    hover_data={
+        "Diameter":          True,
+        "Hub Height":        True,
+        "Total Height":      True,
+        "Manufacturer":      True,
+        "Model":             True,
+        "Operator":          True,
+        "Rated Power (MW)":  True,
+        "Rated Power":       False,
+        "Rated Power (kW)":  False,
+        "Power Category":    False,
+        "Start Date":        True,
+        "Lat":               False,
+        "Lon":               False,
+    },
+)
 
 fig.update_traces(
-    cluster=dict(enabled=True, maxzoom=7)
-    )
+    cluster=dict(enabled=True, maxzoom=7),
+    hoverlabel=dict(font_size=15, namelength=-1),
+)
 
-
-# Set map style
 fig.update_layout(
-    map_center={"lat": df["Lat"].mean(), "lon": df["Lon"].mean()}, 
+    map_center={"lat": df["Lat"].mean(), "lon": df["Lon"].mean()},
     autosize=True,
     margin=dict(l=0, r=0, t=0, b=0),
-  map_style="open-street-map")   # open-street-map, stamen-terrain, carto-positron "carto-darkmatter", "stamen-terrain" "stamen-toner" "stamen-watercolor"
+    map_style="open-street-map",
+    showlegend=True,
+    legend=dict(
+        x=0.99, y=0.01,
+        xanchor="right", yanchor="bottom",
+        bgcolor="rgba(12,22,38,0.85)",
+        bordercolor="rgba(100,200,255,0.18)",
+        borderwidth=1,
+        font=dict(color="white", size=12),
+        title=dict(
+            text="Rated Power",
+            font=dict(color="rgba(160,210,255,0.75)", size=11),
+        ),
+    ),
+)
 
 # Save to HTML
 html_file = "index.html"
@@ -32,8 +125,6 @@ fig.write_html(
     div_id="windfarm-map"
 )
 
-
-# fig.show()
 
 # Modify html head
 manifest_block = """
@@ -59,160 +150,152 @@ with open(html_file, "r", encoding="utf-8") as f:
 # Insert manifest block into <head>
 html_content = html_content.replace("<head>", "<head>\n" + manifest_block, 1)
 
-# splash_css = """
-# <style>
-#     #splash-screen {
-#         position: fixed;
-#         top: 0; left: 0;
-#         width: 100%; height: 100%;
-#         background-color: #1287cd;
-#         display: flex;
-#         flex-direction: column;
-#         justify-content: center;
-#         align-items: center;
-#         z-index: 9999;
-#     }
-#     #splash-screen img {
-#         width: 2700;
-#         height: 2700px;
-#     }
-#     #splash-screen h1 {
-#         color: white;
-#         font-size: 48px;
-#         margin-top: 20px;
-#     }
-# </style>
-# """
-
-# splash_html = """
-# <div id="splash-screen">
-#     <img src="icon-512.png" alt="Logo">
-#     <h1>Wind Farms Map</h1>
-# </div>
-# <script>
-#     setTimeout(() => {
-#         document.getElementById('splash-screen').style.display = 'none';
-#     }, 4000);
-# </script>
-# """
-
-# Insert splash CSS into <head>
-# html_content = html_content.replace("<head>", "<head>\n" + splash_css, 1)
-
-# Insert splash HTML into <body>
-# html_content = html_content.replace("<body>", "<body>\n" + splash_html, 1)
-
-
-
 # --- Basemap dropdown + Update Now button (REAL HTML + JS) ---
 style_selector_html = """
 <div id="style-switcher">
-  <button id="change-style-btn">
-    🗺️ Change style
-  </button>
+  <button id="change-style-btn">🗺️ Change style</button>
   <small class="hint">Shift+S</small>
 </div>
+
+<div id="stats-bar-2d">🌬️ 246,229 turbines worldwide</div>
 """
 
 view_switcher_html = """
 <div id="view-switcher">
-  <button id="open-3d">
-  🌍 3D Globe
-  </button>
-
-  <script>
-    document.getElementById("open-3d").addEventListener("click", () => {
-      const plotlyDiv =
-        document.querySelector(".js-plotly-plot") ||
-        document.querySelector(".plotly");
-
-      if (!plotlyDiv || !plotlyDiv.layout || !plotlyDiv.layout.map) {
-        // fallback: just open Cesium
-        location.href = "cesium.html";
-        return;
-      }
-
-      const center = plotlyDiv.layout.map.center;
-      const zoom = plotlyDiv.layout.map.zoom ?? 5;
-
-      if (!center) {
-        location.href = "cesium.html";
-        return;
-      }
-
-      const url =
-        `cesium.html?lat=${center.lat}&lon=${center.lon}&zoom=${zoom}`;
-
-      console.log("Opening Cesium with:", url);
-      location.href = url;
-    });
-    </script>
-
-
-
-
+  <button id="open-3d">🌍 3D Globe</button>
 </div>
 """
 
 style_switcher_js = """
 <script>
-(function() {
-  function ready(fn){
+(function () {
+  function ready(fn) {
     document.readyState !== 'loading'
       ? fn()
       : document.addEventListener('DOMContentLoaded', fn);
   }
 
-  ready(function() {
+  ready(function () {
     const plotlyDiv = document.querySelector('.js-plotly-plot, .plotly');
     if (!plotlyDiv || !window.Plotly) return;
 
-    const styles = [
-      "open-street-map",
-      "satellite",
-      "carto-voyager",
-      "carto-darkmatter"
-    ];
-
-    const btn = document.getElementById("change-style-btn");
-
+    // ── Style switcher ────────────────────────────────────────────────────────
+    const styles = ['open-street-map', 'satellite', 'carto-voyager', 'carto-darkmatter'];
+    const styleBtn = document.getElementById('change-style-btn');
     let currentIndex = 0;
 
-    // Restore last style
-    const saved = localStorage.getItem("map_style_choice");
+    const saved = localStorage.getItem('map_style_choice');
     if (saved && styles.includes(saved)) {
       currentIndex = styles.indexOf(saved);
       applyStyle(saved);
     }
 
-    btn.addEventListener("click", () => {
-      nextStyle();
-    });
-
-    // Keyboard shortcut: Shift+S
-    document.addEventListener("keydown", e => {
-      if (e.key.toLowerCase() === "s" && e.shiftKey) {
-        nextStyle();
-      }
+    styleBtn.addEventListener('click', nextStyle);
+    document.addEventListener('keydown', e => {
+      if (e.key.toLowerCase() === 's' && e.shiftKey) nextStyle();
     });
 
     function nextStyle() {
       currentIndex = (currentIndex + 1) % styles.length;
       const style = styles[currentIndex];
-      localStorage.setItem("map_style_choice", style);
+      localStorage.setItem('map_style_choice', style);
       applyStyle(style);
     }
 
     async function applyStyle(style) {
       try {
-        await Plotly.relayout(plotlyDiv, {
-          "map.style": style
-        });
-        console.log("Map style:", style);
+        await Plotly.relayout(plotlyDiv, { 'map.style': style });
       } catch (err) {
-        console.error("Style change failed", err);
+        console.error('Style change failed', err);
       }
     }
+
+    // ── 3D Globe button: pass current map position ────────────────────────────
+    const open3dBtn = document.getElementById('open-3d');
+    if (open3dBtn) {
+      open3dBtn.addEventListener('click', () => {
+        const layout = plotlyDiv.layout;
+        if (!layout || !layout.map || !layout.map.center) {
+          location.href = 'cesium.html';
+          return;
+        }
+        const c = layout.map.center;
+        const z = layout.map.zoom ?? 5;
+        location.href = `cesium.html?lat=${c.lat}&lon=${c.lon}&zoom=${z}`;
+      });
+    }
+
+    // ── Restore position from 3D -> 2D return ────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const rlat   = parseFloat(params.get('lat'));
+    const rlon   = parseFloat(params.get('lon'));
+    const rzoom  = parseFloat(params.get('zoom'));
+    const hasUrlPos = Number.isFinite(rlat) && Number.isFinite(rlon);
+
+    if (hasUrlPos) {
+      // Plotly's map initialises asynchronously — retry at several intervals
+      // to guarantee the relayout sticks regardless of load speed.
+      const applyPos = () => Plotly.relayout(plotlyDiv, {
+        'map.center': { lat: rlat, lon: rlon },
+        'map.zoom':   Number.isFinite(rzoom) ? rzoom : 5,
+      });
+      [100, 500, 1200].forEach(t => setTimeout(applyPos, t));
+    }
+
+    // ── Geolocation (auto, no button) ─────────────────────────────────────────
+    let userTraceIndex = null;
+
+    function doGeolocate(flyTo) {
+      if (!navigator.geolocation) return;
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const { latitude, longitude } = pos.coords;
+
+          if (userTraceIndex !== null) {
+            Plotly.deleteTraces(plotlyDiv, userTraceIndex);
+            userTraceIndex = null;
+          }
+
+          // Blue dot with white border — matches the 3D globe style
+          const userTrace = {
+            type: 'scattermap',
+            mode: 'markers+text',
+            lat: [latitude],
+            lon: [longitude],
+            text: ['You are here'],
+            textposition: 'top center',
+            textfont: { size: 13, color: 'white' },
+            marker: {
+              size: 20,
+              color: '#4285F4',
+              line: { width: 3, color: 'white' },
+            },
+            hovertemplate: `<b>Your Location</b><br>${latitude.toFixed(5)}\u00b0, ${longitude.toFixed(5)}\u00b0<extra></extra>`,
+            name: 'My Location',
+            showlegend: false,
+          };
+
+          Plotly.addTraces(plotlyDiv, userTrace).then(() => {
+            userTraceIndex = plotlyDiv.data.length - 1;
+          });
+
+          if (flyTo) {
+            Plotly.relayout(plotlyDiv, {
+              'map.center': { lat: latitude, lon: longitude },
+              'map.zoom': 10,
+            });
+          }
+        },
+        () => { /* silently ignore geolocation errors on auto-request */ },
+        { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 }
+      );
+    }
+
+    // Auto-geolocate on every page load.
+    // Fly to location only on fresh loads; when returning from 3D the URL
+    // params already set the position, so just show the dot.
+    doGeolocate(!hasUrlPos);
   });
 })();
 </script>
@@ -242,25 +325,7 @@ html, body {
   }
 }
 
-/* === Buttons: fully responsive and touch-friendly === */
-#view-switcher button,
-#style-switcher button {
-  font-size: clamp(16px, 2.5vw, 28px);    /* scales with screen width */
-  padding: clamp(12px, 2vw, 24px) clamp(16px, 3vw, 28px); /* bigger touch area */
-  border-radius: clamp(6px, 1vw, 12px);
-  cursor: pointer;
-  background: #2c3e50;
-  color: white;
-  border: none;
-}
-
-/* Hint text scales too */
-#style-switcher .hint {
-  font-size: clamp(11px, 1.5vw, 16px);
-  opacity: 0.7;
-}
-
-/* Flex layout for buttons */
+/* === Buttons === */
 #view-switcher,
 #style-switcher {
   display: flex;
@@ -270,11 +335,77 @@ html, body {
   z-index: 10001;
 }
 
-/* Bigger hover text on mobile */
+#view-switcher {
+  top: 12px;
+  right: 12px;
+  align-items: flex-end;
+}
+
+#style-switcher {
+  top: 12px;
+  left: 12px;
+  gap: 6px;
+}
+
+#view-switcher button,
+#style-switcher button {
+  font-size: clamp(14px, 2vw, 18px);
+  padding: clamp(9px, 1.6vw, 13px) clamp(13px, 2.2vw, 19px);
+  border-radius: 9px;
+  border: 1px solid rgba(100, 180, 255, 0.2);
+  cursor: pointer;
+  background: rgba(20, 35, 55, 0.88);
+  backdrop-filter: blur(10px);
+  color: white;
+  transition: transform 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
 #view-switcher button:hover,
 #style-switcher button:hover {
-  transform: scale(1.05);
-  transition: transform 0.15s ease;
+  background: rgba(40, 70, 110, 0.95);
+  border-color: rgba(100, 180, 255, 0.45);
+  transform: scale(1.04);
+}
+
+#style-switcher .hint {
+  font-size: clamp(10px, 1.2vw, 13px);
+  opacity: 0.6;
+  color: white;
+}
+
+/* Stats bar */
+#stats-bar-2d {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  background: rgba(12, 22, 38, 0.82);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(100, 200, 255, 0.18);
+  border-radius: 20px; padding: 7px 20px;
+  color: rgba(190, 220, 255, 0.88);
+  font-size: clamp(11px, 1.4vw, 14px);
+  font-family: system-ui, sans-serif;
+  z-index: 10001; white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  #view-switcher button,
+  #style-switcher button {
+    font-size: 20px;
+    padding: 15px 20px;
+    border-radius: 12px;
+  }
+  #style-switcher .hint { font-size: 13px; }
+}
+
+/* Hover tooltip text */
+.hoverlayer .hovertext {
+  font-size: 200% !important;
+  padding: 20px !important;
+}
+.hoverlayer .hovertext text {
+  font-size: 15px !important;
 }
 
 </style>
@@ -284,8 +415,6 @@ html, body {
 # Insert custom CSS into <head>
 html_content = html_content.replace("<head>", "<head>\n" + custom_css, 1)
 
-# Insert the dropdown+JS right after <body>
-# html_content = html_content.replace("<body>", "<body>\n" + style_selector_html + "\n" + style_switcher_js, 1)
 html_content = html_content.replace(
     "<body>",
     "<body>\n"
@@ -295,34 +424,9 @@ html_content = html_content.replace(
     1
 )
 
-
-# (Optional) insert service worker script before </body>
+# Insert service worker script before </body>
 html_content = html_content.replace("</body>", service_worker_script + "\n</body>", 1)
 
 # Save the updated HTML
 with open(html_file, "w", encoding="utf-8") as f:
     f.write(html_content)
-
-
-# # After fig.write_html(...)
-# responsive_css = """
-# <style>
-# @media (max-width: 768px) {
-#     .map-container { height: 400px; }
-# }
-# @media (min-width: 769px) {
-#     .map-container { height: 880px; }
-# }
-# </style>
-# """
-
-# with open(html_file, "r", encoding="utf-8") as f:
-#     html_content = f.read()
-
-# html_content = html_content.replace("<head>", "<head>\n" + responsive_css, 1)
-# html_content = html_content.replace("<body>", "<body>\n<div class='map-container'>", 1)
-# html_content = html_content.replace("</body>", "</div>\n</body>", 1)
-
-# with open(html_file, "w", encoding="utf-8") as f:
-#     f.write(html_content)
-
