@@ -343,11 +343,11 @@ function renderBatch(rows, idx) {
       country: row["Country"], lat: lat, lon: lon,
     });
     points.add({
-      position:  Cesium.Cartesian3.fromDegrees(lon, lat),
-      color:     powerToColor(row["Rated Power"]),
-      pixelSize: diameterToSize(row["Diameter"]),
-      id:        dataIdx,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      position:       Cesium.Cartesian3.fromDegrees(lon, lat),
+      color:          powerToColor(row["Rated Power"]),
+      pixelSize:      diameterToSize(row["Diameter"]),
+      id:             dataIdx,
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
     });
     totalAdded++;
   }
