@@ -417,14 +417,14 @@ html, body {
 @media (max-width: 768px) {
   #view-switcher button,
   #style-switcher button {
-    font-size: 20px;
-    padding: 14px 22px;
-    border-radius: 12px;
+    font-size: 16px;
+    padding: 10px 16px;
+    border-radius: 10px;
   }
   #style-switcher .hint { font-size: 14px; }
   #legend-2d {
-    font-size: 15px;
-    padding: 12px 16px;
+    font-size: 13px;
+    padding: 10px 14px;
   }
   #legend-2d h4 { font-size: 12px; }
   .leg-dot { width: 12px; height: 12px; }
