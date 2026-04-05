@@ -225,7 +225,7 @@ function parsePowerKw(raw) {
   var mw = s.match(/^([0-9.]+)\s*MW$/i);
   if (mw) { var kw = parseFloat(mw[1]) * 1000; return kw > 30000 ? kw / 1000 : kw; }
   var kw = s.match(/^([0-9.]+)\s*kW$/i);
-  if (kw) return parseFloat(kw[1]);
+  if (kw) { var v = parseFloat(kw[1]); return v > 30000 ? v / 1000 : v; }
   var w = s.match(/^([0-9.]+)\s*W$/i);
   if (w) return parseFloat(w[1]) / 1000;
   var n = Number(s);

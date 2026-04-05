@@ -30,7 +30,9 @@ def parse_power_kw(raw):
             # Largest real turbine today is ~22 MW; 30 MW gives safe headroom.
             return kw / 1000 if kw > 30_000 else kw
         if unit == "kw":
-            return val
+            # Same mislabeling guard: kW values > 30 000 are almost certainly
+            # watt values mislabeled as kW (e.g. 5 500 000 kW → 5 500 kW = 5.5 MW)
+            return val if val <= 30_000 else val / 1000
         if unit == "w":
             return val / 1000
     m2 = re.match(r"^([0-9.]+)$", s)
@@ -415,17 +417,17 @@ html, body {
 @media (max-width: 768px) {
   #view-switcher button,
   #style-switcher button {
-    font-size: 30px;
-    padding: 22px 32px;
-    border-radius: 16px;
+    font-size: 20px;
+    padding: 14px 22px;
+    border-radius: 12px;
   }
-  #style-switcher .hint { font-size: 16px; }
+  #style-switcher .hint { font-size: 14px; }
   #legend-2d {
     font-size: 15px;
-    padding: 14px 20px;
+    padding: 12px 16px;
   }
-  #legend-2d h4 { font-size: 13px; }
-  .leg-dot { width: 13px; height: 13px; }
+  #legend-2d h4 { font-size: 12px; }
+  .leg-dot { width: 12px; height: 12px; }
 }
 
 /* Hover tooltip text */
