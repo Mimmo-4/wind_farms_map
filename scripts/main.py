@@ -24,7 +24,11 @@ def parse_power_kw(raw):
         if unit == "gw":
             return val * 1_000_000
         if unit == "mw":
-            return val * 1000
+            kw = val * 1000
+            # Values labeled "MW" exceeding a realistic single-turbine max are
+            # almost certainly kW values mislabeled as MW (data quality issue).
+            # Largest real turbine today is ~22 MW; 30 MW gives safe headroom.
+            return kw / 1000 if kw > 30_000 else kw
         if unit == "kw":
             return val
         if unit == "w":
@@ -269,7 +273,7 @@ style_switcher_js = """
             lon: [longitude],
             text: ['You are here'],
             textposition: 'top center',
-            textfont: { size: 13, color: 'black' },
+            textfont: { size: 15, color: 'white' },
             marker: {
               size: 20,
               color: '#4285F4',
@@ -410,11 +414,11 @@ html, body {
 @media (max-width: 768px) {
   #view-switcher button,
   #style-switcher button {
-    font-size: 22px;
-    padding: 18px 26px;
-    border-radius: 14px;
+    font-size: 30px;
+    padding: 22px 32px;
+    border-radius: 16px;
   }
-  #style-switcher .hint { font-size: 14px; }
+  #style-switcher .hint { font-size: 16px; }
   #legend-2d {
     font-size: 15px;
     padding: 14px 20px;

@@ -118,11 +118,6 @@ html, body, #cesiumContainer {
 @media (max-width: 768px) {
   #turbine-info { top: auto; bottom: 0; right: 0; left: 0; width: 100%; border-radius: 16px 16px 0 0; transform: none; }
   #info-body { max-height: 52vh; }
-  .overlay-btn {
-    font-size: 22px;
-    padding: 18px 26px;
-    border-radius: 14px;
-  }
   #legend {
     font-size: 15px;
     padding: 14px 20px;
@@ -144,6 +139,15 @@ html, body, #cesiumContainer {
 
 <div id="overlay">
   <button class="overlay-btn" id="btn-back">&#x1F5FA;&#xFE0F; 2D Map</button>
+  <button class="overlay-btn" id="locate-btn" title="My location" style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border-radius:50%;">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+      <circle cx="12" cy="12" r="4"/>
+      <line x1="12" y1="2" x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="6" y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
 </div>
 
 <div id="stats-bar">&#x1F32C;&#xFE0F; <span id="turbine-count">Loading&hellip;</span> turbines worldwide</div>
@@ -219,7 +223,7 @@ function parsePowerKw(raw) {
   var gw = s.match(/^([0-9.]+)\s*GW$/i);
   if (gw) return parseFloat(gw[1]) * 1000000;
   var mw = s.match(/^([0-9.]+)\s*MW$/i);
-  if (mw) return parseFloat(mw[1]) * 1000;
+  if (mw) { var kw = parseFloat(mw[1]) * 1000; return kw > 30000 ? kw / 1000 : kw; }
   var kw = s.match(/^([0-9.]+)\s*kW$/i);
   if (kw) return parseFloat(kw[1]);
   var w = s.match(/^([0-9.]+)\s*W$/i);
@@ -343,6 +347,7 @@ function renderBatch(rows, idx) {
       color:     powerToColor(row["Rated Power"]),
       pixelSize: diameterToSize(row["Diameter"]),
       id:        dataIdx,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
     });
     totalAdded++;
   }
@@ -484,8 +489,11 @@ function doGeolocate(flyTo) {
   );
 }
 
+document.getElementById('locate-btn').addEventListener('click', function () { doGeolocate(true); });
+
 // Auto-geolocate on every load; fly only when not navigating from 2D map
 doGeolocate(!Number.isFinite(initLat) || !Number.isFinite(initLon));
+
 </script>
 
 </body>
